@@ -1,3 +1,15 @@
+import numpy as np
+
+def unitVector(vector):
+    """ Returns the unit vector of the vector.  """
+    return vector / np.linalg.norm(vector)
+
+def angleBetween(v1, v2):
+    # https://blog.finxter.com/calculating-the-angle-clockwise-between-2-points/
+    ang1 = np.arctan2(v1[1], v1[0])
+    ang2 = np.arctan2(v2[1], v2[0])
+    return (ang1 - ang2) % (2 * np.pi)
+
 # Print iterations progress
 def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
     """

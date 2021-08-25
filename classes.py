@@ -3,6 +3,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
+import util
 from util import printProgressBar
 
 
@@ -17,7 +18,7 @@ class Simulation:
         for i in range(self.simulationConstants["numSwimmers"]):
             xPos = np.random.rand() * self.simulationConstants["environmentSideLength"] - self.simulationConstants["environmentSideLength"] / 2
             yPos = np.random.rand() * self.simulationConstants["environmentSideLength"] - self.simulationConstants["environmentSideLength"] / 2
-            vPhi = np.random.rand() * 2 * np.pi
+            vPhi = np.random.rand() * 2 * np.pi # angle in rad
             self.swimmers.append([xPos, yPos, vPhi])
 
         self.swimmerColors = np.random.rand(self.simulationConstants["numSwimmers"])
@@ -67,6 +68,35 @@ class Simulation:
 
             swimmerState[0] += xVel * self.tau
             swimmerState[1] += yVel * self.tau
+
+            # check for boundary hits
+            leftBoundaryHit = (swimmerState[0] <= -self.simulationConstants["environmentSideLength"] / 2 + self.simulationConstants["swimmerSize"])
+            rightBoundaryHit = (swimmerState[0] >= self.simulationConstants["environmentSideLength"] / 2 - self.simulationConstants["swimmerSize"])
+            upBoundaryHit = (swimmerState[1] >= self.simulationConstants["environmentSideLength"] / 2 - self.simulationConstants["swimmerSize"])
+            downBoundaryHit = (swimmerState[1] <= -self.simulationConstants["environmentSideLength"] / 2 + self.simulationConstants["swimmerSize"])
+
+            # if leftBoundaryHit or rightBoundaryHit or upBoundaryHit or downBoundaryHit:
+            #     swimmerState[2] = (swimmerState[2] + np.pi) % (2*np.pi)
+
+            vvec = np.array([np.cos(swimmerState[2]), np.sin(swimmerState[2])])
+            n = np.array([0, 0])
+            if leftBoundaryHit:
+                n = np.array([1, 0])
+                swimmerState[0] += self.simulationConstants["swimmerSize"]
+            elif rightBoundaryHit:
+                n = np.array([-1, 0])
+                swimmerState[0] -= self.simulationConstants["swimmerSize"]
+            elif upBoundaryHit:
+                n = np.array([0, -1])
+                swimmerState[1] -= self.simulationConstants["swimmerSize"]
+            elif downBoundaryHit:
+                n = np.array([0, 1])
+                swimmerState[1] += self.simulationConstants["swimmerSize"]
+
+            if leftBoundaryHit or rightBoundaryHit or upBoundaryHit or downBoundaryHit:
+                # http://www.3dkingdoms.com/weekly/weekly.php?a=2
+                vvec = -2 * (np.dot(vvec, n)) * n + vvec
+                swimmerState[2] = np.arctan2(vvec[1], vvec[0]) % (2 * np.pi)
 
         return newState
 
