@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from scipy.spatial.distance import pdist, squareform
 
 import util
 from util import printProgressBar
@@ -60,8 +61,26 @@ class Simulation:
 
         newState = previousState.copy()
 
+        _pdist = pdist(previousState[:, :2])
+        distances = squareform(pdist(previousState[:, :2])) # symmetric matric with all distances
+        index1, index2 = np.where(distances <= 0.25)
+        uniqueDistance = (index1 != index2) # because the matrix is symmetric, throw out all diagonal
+        index1 = index1[uniqueDistance]
+        index2 = index2[uniqueDistance]
+
         for i in range(self.simulationConstants["numSwimmers"]):
             swimmerState = newState[i]
+
+            indexForDistance = index2[index1 == i]
+            # i and j are in range
+            newAverageAngle = previousState[i, 2]
+            for j in indexForDistance:
+                swimmerInRange = previousState[j]
+                distance = distances[i, j]
+                newAverageAngle += swimmerInRange[2]
+
+            swimmerState[2] = newAverageAngle / (len(indexForDistance) + 1)
+
 
             xVel = self.simulationConstants["initialVelocity"] * np.cos(swimmerState[2])
             yVel = self.simulationConstants["initialVelocity"] * np.sin(swimmerState[2])
@@ -69,34 +88,33 @@ class Simulation:
             swimmerState[0] += xVel * self.tau
             swimmerState[1] += yVel * self.tau
 
+
             # check for boundary hits
             leftBoundaryHit = (swimmerState[0] <= -self.simulationConstants["environmentSideLength"] / 2 + self.simulationConstants["swimmerSize"])
             rightBoundaryHit = (swimmerState[0] >= self.simulationConstants["environmentSideLength"] / 2 - self.simulationConstants["swimmerSize"])
             upBoundaryHit = (swimmerState[1] >= self.simulationConstants["environmentSideLength"] / 2 - self.simulationConstants["swimmerSize"])
             downBoundaryHit = (swimmerState[1] <= -self.simulationConstants["environmentSideLength"] / 2 + self.simulationConstants["swimmerSize"])
 
-            # if leftBoundaryHit or rightBoundaryHit or upBoundaryHit or downBoundaryHit:
-            #     swimmerState[2] = (swimmerState[2] + np.pi) % (2*np.pi)
-
             vvec = np.array([np.cos(swimmerState[2]), np.sin(swimmerState[2])])
             n = np.array([0, 0])
             if leftBoundaryHit:
                 n = np.array([1, 0])
-                swimmerState[0] += self.simulationConstants["swimmerSize"]
+                swimmerState[0] += self.simulationConstants["swimmerSize"] / 4
             elif rightBoundaryHit:
                 n = np.array([-1, 0])
-                swimmerState[0] -= self.simulationConstants["swimmerSize"]
+                swimmerState[0] -= self.simulationConstants["swimmerSize"] / 4
             elif upBoundaryHit:
                 n = np.array([0, -1])
-                swimmerState[1] -= self.simulationConstants["swimmerSize"]
+                swimmerState[1] -= self.simulationConstants["swimmerSize"] / 4
             elif downBoundaryHit:
                 n = np.array([0, 1])
-                swimmerState[1] += self.simulationConstants["swimmerSize"]
+                swimmerState[1] += self.simulationConstants["swimmerSize"] / 4
 
             if leftBoundaryHit or rightBoundaryHit or upBoundaryHit or downBoundaryHit:
                 # http://www.3dkingdoms.com/weekly/weekly.php?a=2
                 vvec = -2 * (np.dot(vvec, n)) * n + vvec
                 swimmerState[2] = np.arctan2(vvec[1], vvec[0]) % (2 * np.pi)
+            
 
         return newState
 
@@ -111,8 +129,7 @@ class Simulation:
 
             markerSize = int(self.figure.dpi * 2 * self.simulationConstants["swimmerSize"] * self.figure.get_figwidth()
                              / np.diff(self.axis.get_xbound())[0])
-            areaSize = np.append(np.ones(self.simulationConstants["numSwimmers"]) * markerSize ** 2,
-                                 np.ones(self.simulationConstants["numSwimmers"]) * 11 ** 2)
+            areaSize = np.ones(self.simulationConstants["numSwimmers"]) * 0.5 * markerSize ** 2
 
             # update pieces of the animation
             self.rect.set_edgecolor('k')

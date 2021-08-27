@@ -4,10 +4,10 @@ from util import printProgressBar
 
 if __name__ == "__main__":
     CONSTANTS = {
-        "fps": 30,
+        "fps": 60,
         "time": 30,
-        "environmentSideLength": 10,
-        "numSwimmers": 300,
+        "environmentSideLength": 15,
+        "numSwimmers": 1000,
         "initialVelocity": 0.3,
 
         "swimmerSize": 0.04,
