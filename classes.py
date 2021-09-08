@@ -73,13 +73,15 @@ class Simulation:
 
             indexForDistance = index2[index1 == i]
             # i and j are in range
-            newAverageAngle = previousState[i, 2]
+            sinSum = np.sin(swimmerState[2])
+            cosSum = np.cos(swimmerState[2])
             for j in indexForDistance:
                 swimmerInRange = previousState[j]
                 distance = distances[i, j]
-                newAverageAngle += swimmerInRange[2]
+                sinSum += np.sin(swimmerInRange[2])
+                cosSum += np.cos(swimmerInRange[2])
 
-            swimmerState[2] = newAverageAngle / (len(indexForDistance) + 1)
+            swimmerState[2] = np.arctan2(sinSum, cosSum)
 
 
             xVel = self.simulationConstants["initialVelocity"] * np.cos(swimmerState[2])
@@ -147,6 +149,15 @@ class Simulation:
 
         ani = animation.FuncAnimation(self.figure, animate, frames=self.numFrames,
                                       interval=1000 / self.simulationConstants["fps"], blit=True, init_func=plotInit)
+
+        # mpl.rcParams['animation.ffmpeg_path'] = r'C:\\Users\\konst\\Desktop\\ffmpeg\\bin\\ffmpeg.exe'
+        # f = r"c:\\Users\\konst\\Desktop\\animation.mp4"
+        # writervideo = animation.FFMpegWriter(fps=self.simulationConstants["fps"], bitrate=3000)
+        # ani.save(
+        #     f, writer=writervideo,
+        #     progress_callback=lambda i, n: printProgressBar(i, n, prefix='Animation Progress:',
+        #                                                     suffix='Animation Complete', length=50)
+        # )
 
         plt.show()
 
