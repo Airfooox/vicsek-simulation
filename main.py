@@ -6,9 +6,12 @@ if __name__ == "__main__":
     CONSTANTS = {
         "fps": 60,
         "time": 30,
-        "environmentSideLength": 15,
-        "numSwimmers": 1000,
-        "initialVelocity": 0.3,
+        "environmentSideLength": 7,
+        "numSwimmers": 300,
+        # "initialVelocity": 0.5,
+        "initialVelocity": 0.25,
+        "interactionRadius": 0.5,
+        "randomAngleAmplitude": 2, # eta
 
         "swimmerSize": 0.04,
         "saveVideo": False

@@ -16,6 +16,8 @@ class Simulation:
 
         # initialize the swimmers with position and angle of velocity
         self.swimmers = []
+        # self.swimmers.append([0.9, 0.9, 180 * np.pi / 180])
+        # self.swimmers.append([-0.9, -0.9, 5 * np.pi / 180])
         for i in range(self.simulationConstants["numSwimmers"]):
             xPos = np.random.rand() * self.simulationConstants["environmentSideLength"] - self.simulationConstants["environmentSideLength"] / 2
             yPos = np.random.rand() * self.simulationConstants["environmentSideLength"] - self.simulationConstants["environmentSideLength"] / 2
@@ -62,14 +64,49 @@ class Simulation:
         newState = previousState.copy()
 
         _pdist = pdist(previousState[:, :2])
-        distances = squareform(pdist(previousState[:, :2])) # symmetric matric with all distances
-        index1, index2 = np.where(distances <= 0.25)
-        uniqueDistance = (index1 != index2) # because the matrix is symmetric, throw out all diagonal
+        distances = squareform(pdist(previousState[:, :2])) # symmetric matric with all distances between the particles
+        index1, index2 = np.where(distances <= self.simulationConstants["interactionRadius"])
+        uniqueDistance = (index1 != index2) # because the matrix is symmetric, throw out all diagonal, because its all zero
         index1 = index1[uniqueDistance]
         index2 = index2[uniqueDistance]
 
         for i in range(self.simulationConstants["numSwimmers"]):
             swimmerState = newState[i]
+
+            # interaction over boundary stuff
+            # check if particles radius is over boundary
+            # -> shadow teleport that particle over the boundary on the other side
+            # get distances to all particles
+            # (make it smart, so if in right upper corner, teleport to lower left)
+            leftInteractionBoundaryHit = (swimmerState[0] < -self.simulationConstants["environmentSideLength"] / 2 +
+                               self.simulationConstants["interactionRadius"])
+            rightInteractionBoundaryHit = (swimmerState[0] > self.simulationConstants["environmentSideLength"] / 2 -
+                                self.simulationConstants["interactionRadius"])
+            upInteractionBoundaryHit = (swimmerState[1] > self.simulationConstants["environmentSideLength"] / 2 -
+                             self.simulationConstants["interactionRadius"])
+            downInteractionBoundaryHit = (swimmerState[1] < -self.simulationConstants["environmentSideLength"] / 2 +
+                               self.simulationConstants["interactionRadius"])
+
+            shadowState = np.copy(swimmerState)
+            if leftInteractionBoundaryHit:
+                shadowState[0] += self.simulationConstants["environmentSideLength"]
+            if rightInteractionBoundaryHit:
+                shadowState[0] -= self.simulationConstants["environmentSideLength"]
+            if upInteractionBoundaryHit:
+                shadowState[1] -= self.simulationConstants["environmentSideLength"]
+            if downInteractionBoundaryHit:
+                shadowState[1] += self.simulationConstants["environmentSideLength"]
+
+            if leftInteractionBoundaryHit or rightInteractionBoundaryHit or upInteractionBoundaryHit or downInteractionBoundaryHit:
+                for j in range(self.simulationConstants["numSwimmers"]):
+                    if i == j:
+                        continue
+
+                    shadowDistanceSwimmer = previousState[j]
+                    distanceBetween = np.sqrt((shadowState[0] - shadowDistanceSwimmer[0])**2 + (shadowState[1] - shadowDistanceSwimmer[1])**2)
+                    if distanceBetween <= self.simulationConstants["interactionRadius"]:
+                        index1 = np.append(index1, [i])
+                        index2 = np.append(index2, [j])
 
             indexForDistance = index2[index1 == i]
             # i and j are in range
@@ -81,8 +118,10 @@ class Simulation:
                 sinSum += np.sin(swimmerInRange[2])
                 cosSum += np.cos(swimmerInRange[2])
 
-            swimmerState[2] = np.arctan2(sinSum, cosSum)
-
+            averageAngle = np.arctan2(sinSum, cosSum)
+            randomAngle = (np.random.rand() - 0.5) * self.simulationConstants["randomAngleAmplitude"]
+            sinusOscillation = np.pi / 40 * np.sin((t / (2 * self.simulationConstants["fps"])) * 2 * np.pi)
+            swimmerState[2] = averageAngle + randomAngle + sinusOscillation
 
             xVel = self.simulationConstants["initialVelocity"] * np.cos(swimmerState[2])
             yVel = self.simulationConstants["initialVelocity"] * np.sin(swimmerState[2])
@@ -90,32 +129,35 @@ class Simulation:
             swimmerState[0] += xVel * self.tau
             swimmerState[1] += yVel * self.tau
 
-
             # check for boundary hits
-            leftBoundaryHit = (swimmerState[0] <= -self.simulationConstants["environmentSideLength"] / 2 + self.simulationConstants["swimmerSize"])
-            rightBoundaryHit = (swimmerState[0] >= self.simulationConstants["environmentSideLength"] / 2 - self.simulationConstants["swimmerSize"])
-            upBoundaryHit = (swimmerState[1] >= self.simulationConstants["environmentSideLength"] / 2 - self.simulationConstants["swimmerSize"])
-            downBoundaryHit = (swimmerState[1] <= -self.simulationConstants["environmentSideLength"] / 2 + self.simulationConstants["swimmerSize"])
+            leftBoundaryHit = (swimmerState[0] <= -self.simulationConstants["environmentSideLength"] / 2)
+            rightBoundaryHit = (swimmerState[0] >= self.simulationConstants["environmentSideLength"] / 2)
+            upBoundaryHit = (swimmerState[1] >= self.simulationConstants["environmentSideLength"] / 2)
+            downBoundaryHit = (swimmerState[1] <= -self.simulationConstants["environmentSideLength"] / 2)
 
-            vvec = np.array([np.cos(swimmerState[2]), np.sin(swimmerState[2])])
-            n = np.array([0, 0])
+            # vvec = np.array([np.cos(swimmerState[2]), np.sin(swimmerState[2])])
+            # n = np.array([0, 0])
             if leftBoundaryHit:
-                n = np.array([1, 0])
-                swimmerState[0] += self.simulationConstants["swimmerSize"] / 4
-            elif rightBoundaryHit:
-                n = np.array([-1, 0])
-                swimmerState[0] -= self.simulationConstants["swimmerSize"] / 4
-            elif upBoundaryHit:
-                n = np.array([0, -1])
-                swimmerState[1] -= self.simulationConstants["swimmerSize"] / 4
-            elif downBoundaryHit:
-                n = np.array([0, 1])
-                swimmerState[1] += self.simulationConstants["swimmerSize"] / 4
+                swimmerState[0] += (self.simulationConstants["environmentSideLength"])
+                # n = np.array([1, 0])
+                # swimmerState[0] += self.simulationConstants["swimmerSize"] / 4
+            if rightBoundaryHit:
+                swimmerState[0] += -(self.simulationConstants["environmentSideLength"])
+                # n = np.array([-1, 0])
+                # swimmerState[0] -= self.simulationConstants["swimmerSize"] / 4
+            if upBoundaryHit:
+                swimmerState[1] += -(self.simulationConstants["environmentSideLength"])
+                # n = np.array([0, -1])
+                # swimmerState[1] -= self.simulationConstants["swimmerSize"] / 4
+            if downBoundaryHit:
+                swimmerState[1] += (self.simulationConstants["environmentSideLength"])
+                # n = np.array([0, 1])
+                # swimmerState[1] += self.simulationConstants["swimmerSize"] / 4
 
-            if leftBoundaryHit or rightBoundaryHit or upBoundaryHit or downBoundaryHit:
+            # if leftBoundaryHit or rightBoundaryHit or upBoundaryHit or downBoundaryHit:
                 # http://www.3dkingdoms.com/weekly/weekly.php?a=2
-                vvec = -2 * (np.dot(vvec, n)) * n + vvec
-                swimmerState[2] = np.arctan2(vvec[1], vvec[0]) % (2 * np.pi)
+                # vvec = -2 * (np.dot(vvec, n)) * n + vvec
+                # swimmerState[2] = np.arctan2(vvec[1], vvec[0]) % (2 * np.pi)
             
 
         return newState
