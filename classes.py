@@ -3,9 +3,11 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from scipy.spatial.distance import pdist, squareform
+# from numba import njit
 
 import util
 from util import printProgressBar
+import time
 
 
 class Simulation:
@@ -49,11 +51,16 @@ class Simulation:
 
     def simulate(self):
         for t in range (1, self.numFrames):
+            # time1 = time.time()
             self.states[t] = self.simulationStep(t)
-            printProgressBar(t, self.numFrames - 1, prefix='Simulation Progress:', suffix='Simulation Complete', length=50)
+            # time2 = time.time()
+            # print('{:d} timestep took {:.3f} ms'.format(t, (time2 - time1) * 1000.0))
+
+            # printProgressBar(t, self.numFrames - 1, prefix='Simulation Progress:', suffix='Simulation Complete', length=50)
 
         return self.states
 
+    # @njit
     def simulationStep(self, t):
         previousState = []
         try:
@@ -63,7 +70,7 @@ class Simulation:
 
         newState = previousState.copy()
 
-        _pdist = pdist(previousState[:, :2])
+        # _pdist = pdist(previousState[:, :2])
         distances = squareform(pdist(previousState[:, :2])) # symmetric matric with all distances between the particles
         index1, index2 = np.where(distances <= self.simulationConstants["interactionRadius"])
         uniqueDistance = (index1 != index2) # because the matrix is symmetric, throw out all diagonal, because its all zero
@@ -149,7 +156,7 @@ class Simulation:
             cosSum = np.cos(swimmerState[2])
             for j in indexForDistance:
                 swimmerInRange = previousState[j]
-                distance = distances[i, j]
+                # distance = distances[i, j]
                 sinSum += np.sin(swimmerInRange[2])
                 cosSum += np.cos(swimmerInRange[2])
 
