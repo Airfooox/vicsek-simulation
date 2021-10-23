@@ -17,7 +17,7 @@ class Simulation:
         # initialize the swimmers with position and angle of velocity
         self.swimmers = []
         # self.swimmers.append([0.9, 0.9, 180 * np.pi / 180])
-        # self.swimmers.append([-0.9, -0.9, 5 * np.pi / 180])
+        # self.swimmers.append([-0.9, -0.9, 0 * np.pi / 180])
         for i in range(self.simulationConstants["numSwimmers"]):
             xPos = np.random.rand() * self.simulationConstants["environmentSideLength"] - self.simulationConstants["environmentSideLength"] / 2
             yPos = np.random.rand() * self.simulationConstants["environmentSideLength"] - self.simulationConstants["environmentSideLength"] / 2
@@ -87,26 +87,61 @@ class Simulation:
             downInteractionBoundaryHit = (swimmerState[1] < -self.simulationConstants["environmentSideLength"] / 2 +
                                self.simulationConstants["interactionRadius"])
 
-            shadowState = np.copy(swimmerState)
+            shadowSwimmerPositions = np.empty((0, 3), float)
             if leftInteractionBoundaryHit:
-                shadowState[0] += self.simulationConstants["environmentSideLength"]
-            if rightInteractionBoundaryHit:
-                shadowState[0] -= self.simulationConstants["environmentSideLength"]
-            if upInteractionBoundaryHit:
-                shadowState[1] -= self.simulationConstants["environmentSideLength"]
-            if downInteractionBoundaryHit:
-                shadowState[1] += self.simulationConstants["environmentSideLength"]
+                newShadowState = np.copy(swimmerState)
+                newShadowState[0] += self.simulationConstants["environmentSideLength"]
+                shadowSwimmerPositions = np.vstack((shadowSwimmerPositions, newShadowState))
 
-            if leftInteractionBoundaryHit or rightInteractionBoundaryHit or upInteractionBoundaryHit or downInteractionBoundaryHit:
+                if upInteractionBoundaryHit:
+                    newShadowStateUp = np.copy(swimmerState)
+                    newShadowStateUp[0] += self.simulationConstants["environmentSideLength"]
+                    newShadowStateUp[1] -= self.simulationConstants["environmentSideLength"]
+                    shadowSwimmerPositions = np.vstack((shadowSwimmerPositions, newShadowStateUp))
+
+                if downInteractionBoundaryHit:
+                    newShadowStateDown = np.copy(swimmerState)
+                    newShadowStateDown[0] += self.simulationConstants["environmentSideLength"]
+                    newShadowStateDown[1] += self.simulationConstants["environmentSideLength"]
+                    shadowSwimmerPositions = np.vstack((shadowSwimmerPositions, newShadowStateDown))
+            if rightInteractionBoundaryHit:
+                newShadowState = np.copy(swimmerState)
+                newShadowState[0] -= self.simulationConstants["environmentSideLength"]
+                shadowSwimmerPositions = np.vstack((shadowSwimmerPositions, newShadowState))
+
+                if upInteractionBoundaryHit:
+                    newShadowStateUp = np.copy(swimmerState)
+                    newShadowStateUp[0] -= self.simulationConstants["environmentSideLength"]
+                    newShadowStateUp[1] -= self.simulationConstants["environmentSideLength"]
+                    shadowSwimmerPositions = np.vstack((shadowSwimmerPositions, newShadowStateUp))
+
+                if downInteractionBoundaryHit:
+                    newShadowStateDown = np.copy(swimmerState)
+                    newShadowStateDown[0] -= self.simulationConstants["environmentSideLength"]
+                    newShadowStateDown[1] += self.simulationConstants["environmentSideLength"]
+                    shadowSwimmerPositions = np.vstack((shadowSwimmerPositions, newShadowStateDown))
+            if upInteractionBoundaryHit:
+                newShadowState = np.copy(swimmerState)
+                newShadowState[1] -= self.simulationConstants["environmentSideLength"]
+                shadowSwimmerPositions = np.vstack((shadowSwimmerPositions, newShadowState))
+            if downInteractionBoundaryHit:
+                newShadowState = np.copy(swimmerState)
+                newShadowState[1] += self.simulationConstants["environmentSideLength"]
+                shadowSwimmerPositions = np.vstack((shadowSwimmerPositions, newShadowState))
+
+            numberOfShadowPositions = len(shadowSwimmerPositions)
+            if numberOfShadowPositions > 0:
                 for j in range(self.simulationConstants["numSwimmers"]):
                     if i == j:
                         continue
 
-                    shadowDistanceSwimmer = previousState[j]
-                    distanceBetween = np.sqrt((shadowState[0] - shadowDistanceSwimmer[0])**2 + (shadowState[1] - shadowDistanceSwimmer[1])**2)
-                    if distanceBetween <= self.simulationConstants["interactionRadius"]:
-                        index1 = np.append(index1, [i])
-                        index2 = np.append(index2, [j])
+                    for k in range(numberOfShadowPositions):
+                        shadowPosition = shadowSwimmerPositions[k]
+                        shadowDistanceSwimmer = previousState[j]
+                        distanceBetween = (shadowPosition[0] - shadowDistanceSwimmer[0])**2 + (shadowPosition[1] - shadowDistanceSwimmer[1])**2
+                        if distanceBetween**2 <= self.simulationConstants["interactionRadius"]:
+                            index1 = np.append(index1, [i])
+                            index2 = np.append(index2, [j])
 
             indexForDistance = index2[index1 == i]
             # i and j are in range
