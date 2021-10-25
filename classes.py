@@ -35,19 +35,19 @@ class Simulation:
             self.states[0][i] = swimmerState
 
         # initialize animation
-        self.figure = plt.figure()
-        self.figure.subplots_adjust(left=0, right=1, bottom=0, top=1)
-        limits = self.simulationConstants["environmentSideLength"] / 2 + 0.2
-        self.axis = self.figure.add_subplot(111, aspect='equal', autoscale_on=False,
-                             xlim=(-limits, limits), ylim=(-limits, limits))
-
-        self.rect = plt.Rectangle((-self.simulationConstants["environmentSideLength"] / 2, -self.simulationConstants["environmentSideLength"] / 2),
-                             self.simulationConstants["environmentSideLength"],
-                             self.simulationConstants["environmentSideLength"],
-                             ec='none', lw=2, fc='none')
-        self.axis.add_patch(self.rect)
-
-        self.swimmerPlot = self.axis.scatter([], [])
+        # self.figure = plt.figure()
+        # self.figure.subplots_adjust(left=0, right=1, bottom=0, top=1)
+        # limits = self.simulationConstants["environmentSideLength"] / 2 + 0.2
+        # self.axis = self.figure.add_subplot(111, aspect='equal', autoscale_on=False,
+        #                      xlim=(-limits, limits), ylim=(-limits, limits))
+        #
+        # self.rect = plt.Rectangle((-self.simulationConstants["environmentSideLength"] / 2, -self.simulationConstants["environmentSideLength"] / 2),
+        #                      self.simulationConstants["environmentSideLength"],
+        #                      self.simulationConstants["environmentSideLength"],
+        #                      ec='none', lw=2, fc='none')
+        # self.axis.add_patch(self.rect)
+        #
+        # self.swimmerPlot = self.axis.scatter([], [])
 
     def simulate(self):
         for t in range (1, self.numFrames):
