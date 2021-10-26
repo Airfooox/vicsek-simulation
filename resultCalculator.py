@@ -4,33 +4,31 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def calculateVelocity(dir):
-    constants = {}
     with open(dir + '/constants.txt') as constantsFile:
         constants = json.load(constantsFile)
     timeSteps = constants["time"] * constants["fps"]
     numSwimmers = constants["numSwimmers"]
 
     stateData = np.load(dir + '/statesData.npy')
-    absoluteVelocity = np.array([0, 0], float)
+    absoluteVelocity = 0
     for t in range(timeSteps):
         timeData = stateData[t]
+        va = np.array([0, 0], float)
         for i in range(numSwimmers):
             swimmerData = timeData[i]
-            absoluteVelocity += np.array([np.cos(swimmerData[2]), np.sin(swimmerData[2])])
+            va += np.array([np.cos(swimmerData[2]), np.sin(swimmerData[2])])
+        absoluteVelocity += np.linalg.norm(va) / numSwimmers
 
-    return np.linalg.norm(absoluteVelocity) / (timeSteps * numSwimmers)
+    return absoluteVelocity / timeSteps
 
 def calculateResult(calculationData):
     dir = calculationData[0]
     num = calculationData[1]
     dict = calculationData[2]
 
-    # print(calculationData)
-
     dirOfData = dir + '/' + str(num)
-    subSimulationRange = range(1, 4)
+    subSimulationRange = range(1, 6)
 
-    constants = {}
     with open(dirOfData + '_1' + '/constants.txt') as constantsFile:
         constants = json.load(constantsFile)
 
@@ -45,13 +43,13 @@ if __name__ == "__main__":
     manager = mp.Manager()
     sameRhoDirectory = manager.dict()
     # sameEtaRange = range(1, 501)
-    sameRhoRange = range(0, 50)
+    sameRhoRange = range(0, 101)
 
     # calculateResult(['E:/simulationdata/sameRho', str(1), sameRhoDirectory])
 
     sameRhoPool = []
     for i in sameRhoRange:
-        sameRhoPool.append(['D:/simulationdata/sameRho', i, sameRhoDirectory])
+        sameRhoPool.append(['E:/simulationdata/sameRho', i, sameRhoDirectory])
 
     pool = mp.Pool(processes=(mp.cpu_count() - 2))
     pool.map(calculateResult, sameRhoPool)
@@ -67,9 +65,12 @@ if __name__ == "__main__":
     for entry in sortedDict:
         index = entry[0]
         result = entry[1]
-        print(index)
+        # print(index)
         x.append(result['constants']['randomAngleAmplitude'])
         y.append(result['va'])
 
     plt.plot(x, y, 'ro')
+    plt.xlabel(r'$\eta \longrightarrow$')
+    plt.ylabel(r'$v_a \longrightarrow$')
+    plt.grid('both')
     plt.show()
