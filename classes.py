@@ -74,8 +74,6 @@ class Simulation:
         initialVelocity = self.simulationConstants["initialVelocity"]
         return self.calcNewState(t, previousState, newState, index1, index2, numSwimmers, environmentSideLength, interactionRadius, randomAngleAmplitude, oscillationAmplitude, fps, initialVelocity)
 
-
-
     @staticmethod
     @njit
     def calcNewState(t, previousState, newState, index1, index2, numSwimmers, environmentSideLength, interactionRadius, randomAngleAmplitude, oscillationAmplitude, fps, initialVelocity):
@@ -186,13 +184,13 @@ class Simulation:
             downBoundaryHit = (swimmerState[1] <= -environmentSideLength / 2)
 
             if leftBoundaryHit:
-                swimmerState[0] += (environmentSideLength)
+                swimmerState[0] += environmentSideLength
             if rightBoundaryHit:
-                swimmerState[0] += -(environmentSideLength)
+                swimmerState[0] += -environmentSideLength
             if upBoundaryHit:
-                swimmerState[1] += -(environmentSideLength)
+                swimmerState[1] += -environmentSideLength
             if downBoundaryHit:
-                swimmerState[1] += (environmentSideLength)
+                swimmerState[1] += environmentSideLength
 
         return newState
 
