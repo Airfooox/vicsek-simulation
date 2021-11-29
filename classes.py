@@ -35,12 +35,11 @@ class Simulation:
             swimmerState = np.array([[self.swimmers[i][0], self.swimmers[i][1], self.swimmers[i][2]]], dtype=numpy.float64)
             self.states[0][i] = swimmerState
 
+        self.absoluteVelocities = np.empty((self.numFrames), dtype=numpy.float64)
+
     def simulate(self):
         for t in range (1, self.numFrames):
-            # time1 = time.time()
-            self.states[t] = self.simulationStep(t)
-            # time2 = time.time()
-            # print('{:d} timestep took {:.3f} ms'.format(t, (time2 - time1) * 1000.0))
+           self.states[t], self.absoluteVelocities[t]  = self.simulationStep(t)
 
             # printProgressBar(t, self.numFrames - 1, prefix='Simulation Progress:', suffix='Simulation Complete', length=50)
 
@@ -72,12 +71,25 @@ class Simulation:
         oscillationAmplitude = self.simulationConstants["oscillationAmplitude"]
         fps = self.simulationConstants["fps"]
         initialVelocity = self.simulationConstants["initialVelocity"]
+
+        # [newState, absoluteVelocity] =
         return self.calcNewState(t, previousState, newState, index1, index2, numSwimmers, environmentSideLength, interactionRadius, randomAngleAmplitude, oscillationAmplitude, fps, initialVelocity)
+
+    def getStates(self):
+        return self.states
+
+    def getAbsoluteVelocities(self):
+        return self.absoluteVelocities
+
+    # 0ths frame won't get into calculation of the absoluteVelocity!
+    def getAbsoluteVelocityTotal(self):
+        return Simulation.calculateAbsoluteVelocityTotal(self.numFrames, self.absoluteVelocities)
 
     @staticmethod
     @njit
     def calcNewState(t, previousState, newState, index1, index2, numSwimmers, environmentSideLength, interactionRadius, randomAngleAmplitude, oscillationAmplitude, fps, initialVelocity):
         tau = 1 / fps
+        sumVelocity = np.array([0, 0], dtype=numpy.float64)
         for i in range(numSwimmers):
             swimmerState = newState[i]
 
@@ -171,11 +183,12 @@ class Simulation:
                 (t / (2 * fps)) * 2 * np.pi)
             swimmerState[2] = averageAngle + randomAngle + sinusOscillation
 
-            xVel = initialVelocity * np.cos(swimmerState[2])
-            yVel = initialVelocity * np.sin(swimmerState[2])
+            xVelCos = np.cos(swimmerState[2])
+            yVelSin = np.sin(swimmerState[2])
+            sumVelocity += np.array([xVelCos, yVelSin], dtype=numpy.float64)
 
-            swimmerState[0] += xVel * tau
-            swimmerState[1] += yVel * tau
+            swimmerState[0] += initialVelocity * xVelCos * tau
+            swimmerState[1] += initialVelocity * yVelSin * tau
 
             # check for boundary hits
             leftBoundaryHit = (swimmerState[0] <= -environmentSideLength / 2)
@@ -192,8 +205,15 @@ class Simulation:
             if downBoundaryHit:
                 swimmerState[1] += environmentSideLength
 
-        return newState
+        return newState, np.linalg.norm(sumVelocity) / numSwimmers
 
+    @staticmethod
+    @njit
+    def calculateAbsoluteVelocityTotal(numFrames, absoluteVelocities):
+        absoluteVelocity = 0
+        for t in range(numFrames):
+            absoluteVelocity += absoluteVelocities[t]
+        return absoluteVelocity / numFrames
 
     def animate(self):
         # initialize animation
