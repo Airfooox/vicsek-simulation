@@ -33,25 +33,38 @@ class SimulationManager:
     def runSimulation(simulationScenario):
         scenarioDataDir = simulationScenario.scenarioDataDir
         scenarioConstants = simulationScenario.scenarioConstants
+        saveTrajectoryData = simulationScenario.saveTrajectoryData
 
         simulation = Simulation(scenarioConstants)
         simulation.simulate()
-        statesData = simulation.states
+        absoluteVelocities = simulation.getAbsoluteVelocities()
+        absoluteVelocity = simulation.getAbsoluteVelocityTotal()
 
         if not (os.path.exists(scenarioDataDir) and os.path.isdir(scenarioDataDir)):
             os.mkdir(scenarioDataDir)
 
         with open(scenarioDataDir + '/constants.txt', 'w') as constantsFile:
             json.dump(scenarioConstants, constantsFile)
-        np.save(scenarioDataDir + '/statesData', statesData)
+
+        with open(scenarioDataDir + '/absoluteVelocities.npy', 'wb') as absoluteVelocitiesFile:
+            np.save(absoluteVelocitiesFile, absoluteVelocities)
+
+        with open(scenarioDataDir + '/absoluteVelocity.txt', 'w') as absoluteVelocityFile:
+            json.dump(absoluteVelocity, absoluteVelocityFile)
+
+        if saveTrajectoryData:
+            statesData = simulation.getStates()
+            with open(scenarioDataDir + '/statesData.npy', 'wb') as statesFile:
+                np.save(statesFile, statesData)
 
 
 class SimulationGroup:
-    def __init__(self, simulationDataDir, constantsFunc, numSimulation, repeatNum, time=60, fps=30):
+    def __init__(self, simulationDataDir, constantsFunc, numSimulation, repeatNum, saveTrajectoryData = False, time=60, fps=30):
         self.simulationDataDir = simulationDataDir
         self.constantsFunc = constantsFunc
         self.numSimulation = numSimulation
         self.repeatNum = repeatNum
+        self.saveTrajectoryData = saveTrajectoryData
         self.time = time
         self.fps = fps
 
@@ -62,10 +75,11 @@ class SimulationGroup:
         for i in range(numSimulation):
             for j in range(repeatNum):
                 scenarioDataDir = self.simulationDataDir + '/' + str(i) + '_' + str(j)
-                self.simulationScenarios.append(SimulationScenario(scenarioDataDir, self.constantsFunc(i, numSimulation, time, fps)))
+                self.simulationScenarios.append(SimulationScenario(scenarioDataDir, self.constantsFunc(i, numSimulation, time, fps), self.saveTrajectoryData))
 
 
 class SimulationScenario:
-    def __init__(self, scenarioDataDir, scenarioConstants):
+    def __init__(self, scenarioDataDir, scenarioConstants, saveTrajectoryData):
         self.scenarioDataDir = scenarioDataDir
         self.scenarioConstants = scenarioConstants
+        self.saveTrajectoryData = saveTrajectoryData
