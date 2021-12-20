@@ -1,5 +1,7 @@
 import multiprocessing as mp
 import json
+
+import numpy
 import numpy as np
 from tqdm import tqdm
 
@@ -14,17 +16,29 @@ def calculateResult(calculationData):
     with open(dirOfData + '_0' + '/constants.txt') as constantsFile:
         constants = json.load(constantsFile)
 
+    totalTimeSteps = constants['fps'] * constants['time']
+    timeEvolution = np.zeros((totalTimeSteps), dtype=numpy.float64)
+
     absoluteVelocity = 0
     for i in subSimulationRange:
         with open(dirOfData + '_' + str(i) + '/absoluteVelocity.txt') as resultFile:
             absoluteVelocity += json.load(resultFile)
 
-    absoluteVelocity = absoluteVelocity / len(subSimulationRange)
+        timeEvolutionData = np.load(dirOfData + '_' + str(i) + '/absoluteVelocities.npy')
+        timeEvolution = np.add(timeEvolution, timeEvolutionData)
 
-    dict[num] = {'va': absoluteVelocity, 'constants': constants}
+
+        # with open(dirOfData + '_' + str(i) + '/absoluteVelocities.npy') as timeEvolutionFile:
+        #     timeEvolutionData = np.load(timeEvolutionFile)
+        #     np.add(timeEvolution, timeEvolutionData)
+
+    absoluteVelocity = absoluteVelocity / len(subSimulationRange)
+    timeEvolution = timeEvolution / len(subSimulationRange)
+
+    dict[num] = {'va': absoluteVelocity, 'constants': constants, 'timeEvolution': timeEvolution.tolist()}
 
 if __name__ == "__main__":
-    dir = '/local/kzisiadis/vicsek-simulation/sameRhoGroup1000'
+dir = '/local/kzisiadis/vicsek-simulation/sameRhoGroup1000'
 
     manager = mp.Manager()
     simulationGroupDirectory = manager.dict()
@@ -45,6 +59,7 @@ if __name__ == "__main__":
         return element[0]
     sortedDict = sorted(simulationGroupDirectory.items(), key = lambda x : x[0])
     x, y = [], []
+    timeEvolution = []
 
     for entry in sortedDict:
         index = entry[0]
@@ -54,6 +69,7 @@ if __name__ == "__main__":
         x.append(result['constants']['randomAngleAmplitude'])
         # x.append(result['constants']['oscillationAmplitude'])
         y.append(result['va'])
+        timeEvolution.append(result['timeEvolution'])
 
     obj = {
         'x': x,
@@ -62,3 +78,6 @@ if __name__ == "__main__":
 
     with open(dir + '/plotResult.txt', 'w') as plotFile:
         json.dump(obj, plotFile)
+
+    with open(dir + '/timeEvolutionResult.txt', 'w') as timeEvolutionFile:
+        json.dump(timeEvolution, timeEvolutionFile)
