@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from scipy.optimize import curve_fit
 from scipy.spatial.distance import pdist, squareform
 from numba import njit
 
@@ -81,7 +82,6 @@ class Simulation:
     def getAbsoluteVelocities(self):
         return self.absoluteVelocities
 
-    # 0ths frame won't get into calculation of the absoluteVelocity!
     def getAbsoluteVelocityTotal(self):
         return Simulation.calculateAbsoluteVelocityTotal(self.numFrames, self.absoluteVelocities)
 
@@ -209,11 +209,53 @@ class Simulation:
 
     @staticmethod
     @njit
+    def getMeanAbsolutVelocity(absoluteVelocities, startMean):
+        arr = absoluteVelocities[startMean:]
+        mean = 0
+        for absoluteVelocity in arr:
+            mean += absoluteVelocity
+        return mean / len(arr)
+
+    @staticmethod
+    def nonLinearFitting(x, y, func, initialParameters):
+        # curve fit the test data
+        fittedParameters, pcov = curve_fit(func, x, y, initialParameters)
+
+        modelPredictions = func(x, *fittedParameters)
+
+        # absError = modelPredictions - y
+
+        # SE = np.square(absError)  # squared errors
+        # MSE = np.mean(SE)  # mean squared errors
+        # RMSE = np.sqrt(MSE)  # Root Mean Squared Error, RMSE
+        # Rsquared = 1.0 - (np.var(absError) / np.var(y))
+        # return {'parameters': fittedParameters, 'RMSE': RMSE, 'Rsquared': Rsquared}
+        return {'parameters': fittedParameters}
+
+    @staticmethod
     def calculateAbsoluteVelocityTotal(numFrames, absoluteVelocities):
-        absoluteVelocity = 0
-        for t in range(numFrames):
-            absoluteVelocity += absoluteVelocities[t]
-        return absoluteVelocity / numFrames
+        absoluteVelocities = np.array(absoluteVelocities)
+        absoluteVelocities[np.abs(absoluteVelocities) < np.finfo(float).eps] = 0
+        # defining exponential function for saturation
+        def func(t, a, b):
+            return -a * (np.exp(-b * t) - 1)
+
+        # find parameters for saturation function
+        t = range(numFrames)
+        initialParameters = [1, 0.1]
+        model = Simulation.nonLinearFitting(t, absoluteVelocities, func, initialParameters)
+        a, b = model['parameters'][0], model['parameters'][1]
+
+        # find the time when system is in saturation for getting the mean value of absolut velocities
+        yprimelim = 10 ** (-5)
+        startMean = np.round(np.maximum(1 / b * np.log(a * b / yprimelim), 0))
+
+        try:
+            absolutVelocity = Simulation.getMeanAbsolutVelocity(np.array(absoluteVelocities), startMean)
+        except ZeroDivisionError:
+            absolutVelocity = 0
+            print(numFrames, np.array(absoluteVelocities))
+        return absolutVelocity
 
     def animate(self):
         # initialize animation
