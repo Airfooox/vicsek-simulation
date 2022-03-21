@@ -7,10 +7,11 @@ from matplotlib.widgets import Slider
 from scipy.optimize import curve_fit, differential_evolution
 from numba import njit
 from pprint import pprint
-@njit
+
+
 def non_linear_regression(x, y, func, initialParameters):
     # curve fit the test data
-    fittedParameters, pcov = curve_fit(func, x, y, initialParameters)
+    fittedParameters, pcov = curve_fit(func, x, y, initialParameters, maxfev=10 ** 4)
 
     modelPredictions = func(x, *fittedParameters)
 
@@ -35,20 +36,20 @@ if __name__ == "__main__":
         timeEvolution = json.load(plotFile)
 
     y = timeEvolution[initSimulationScenarioNum]
-    x = range(len(y))
+    x = np.array(range(len(y)))
 
     fig, ax = plt.subplots()
     line, = plt.plot(x, y)
 
     def func(t, a, b):
         return -a * (np.exp(-b * t) - 1)
-    initialParameters = [1, 0.1]
-    model = non_linear_regression(x, y, func, initialParameters)
-    print(model)
+    initialParameters = [0.5, 0]
+    model = non_linear_regression(x / len(y), y, func, initialParameters)
+    a, b = model['parameters'][0], model['parameters'][1] / len(y)
+    print(a, b)
 
     xModel = np.linspace(np.min(x), np.max(x), 1000)
-    yModel = func(xModel, *model['parameters'])
-    a, b = model['parameters'][0], model['parameters'][1]
+    yModel = func(xModel, a, b)
     line2, = plt.plot(xModel, yModel)
 
     yprimelim = 10**(-5)
@@ -72,12 +73,12 @@ if __name__ == "__main__":
     def update(newScenarioNum):
         y = timeEvolution[newScenarioNum]
         line.set_ydata(y)
-        model = non_linear_regression(x, y, func, initialParameters)
-        print(model)
+        model = non_linear_regression(x / len(y), y, func, initialParameters)
+        a, b = model['parameters'][0], model['parameters'][1] / len(y)
+        print(a, b)
 
         xModel = np.linspace(np.min(x), np.max(x), 1000)
-        yModel = func(xModel, *model['parameters'])
-        a, b = model['parameters'][0], model['parameters'][1]
+        yModel = func(xModel, a, b)
         line2.set_ydata(yModel)
 
         startMean = np.round(np.maximum(1/b * np.log(a * b / yprimelim), 0))
