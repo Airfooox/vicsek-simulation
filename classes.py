@@ -15,8 +15,8 @@ import time
 class Simulation:
     def __init__(self, CONSTANTS):
         self.simulationConstants = CONSTANTS
-        self.numFrames = self.simulationConstants["fps"] * self.simulationConstants["time"]
-        self.tau = 1 / self.simulationConstants["fps"]
+        self.timeSteps = self.simulationConstants["timeSteps"]
+        self.framesUsedForMean = np.floor((self.simulationConstants["timePercentageUsedForMean"] / 100) * self.timeSteps)
 
         # initialize the swimmers with position and angle of velocity
         self.swimmers = []
@@ -31,18 +31,18 @@ class Simulation:
         self.swimmerColors = np.random.rand(self.simulationConstants["numSwimmers"])
 
         # initialize states array and add initial values for first frame
-        self.states = np.empty((self.numFrames, self.simulationConstants["numSwimmers"], 3), dtype=numpy.float64)
+        self.states = np.empty((self.timeSteps, self.simulationConstants["numSwimmers"], 3), dtype=numpy.float64)
         for i in range(self.simulationConstants["numSwimmers"]):
             swimmerState = np.array([[self.swimmers[i][0], self.swimmers[i][1], self.swimmers[i][2]]], dtype=numpy.float64)
             self.states[0][i] = swimmerState
 
-        self.absoluteVelocities = np.empty((self.numFrames), dtype=numpy.float64)
+        self.absoluteVelocities = np.empty((self.timeSteps), dtype=numpy.float64)
 
     def simulate(self):
-        for t in range (1, self.numFrames):
+        for t in range (1, self.timeSteps):
            self.states[t], self.absoluteVelocities[t]  = self.simulationStep(t)
 
-            # printProgressBar(t, self.numFrames - 1, prefix='Simulation Progress:', suffix='Simulation Complete', length=50)
+            # printProgressBar(t, self.timeSteps - 1, prefix='Simulation Progress:', suffix='Simulation Complete', length=50)
 
         return self.states
 
@@ -70,11 +70,11 @@ class Simulation:
         interactionRadius = self.simulationConstants["interactionRadius"]
         randomAngleAmplitude = self.simulationConstants["randomAngleAmplitude"]
         oscillationAmplitude = self.simulationConstants["oscillationAmplitude"]
-        fps = self.simulationConstants["fps"]
+        oscillationPeriod = self.simulationConstants["oscillationPeriod"]
         initialVelocity = self.simulationConstants["initialVelocity"]
 
         # [newState, absoluteVelocity] =
-        return self.calcNewState(t, previousState, newState, index1, index2, numSwimmers, environmentSideLength, interactionRadius, randomAngleAmplitude, oscillationAmplitude, fps, initialVelocity)
+        return self.calcNewState(t, previousState, newState, index1, index2, numSwimmers, environmentSideLength, interactionRadius, randomAngleAmplitude, oscillationAmplitude, oscillationPeriod, initialVelocity)
 
     def getStates(self):
         return self.states
@@ -83,12 +83,11 @@ class Simulation:
         return self.absoluteVelocities
 
     def getAbsoluteVelocityTotal(self):
-        return Simulation.calculateAbsoluteVelocityTotal(self.numFrames, self.absoluteVelocities)
+        return Simulation.calculateAbsoluteVelocityTotal(self.timeSteps, self.framesUsedForMean, self.absoluteVelocities)
 
     @staticmethod
     @njit
-    def calcNewState(t, previousState, newState, index1, index2, numSwimmers, environmentSideLength, interactionRadius, randomAngleAmplitude, oscillationAmplitude, fps, initialVelocity):
-        tau = 1 / fps
+    def calcNewState(t, previousState, newState, index1, index2, numSwimmers, environmentSideLength, interactionRadius, randomAngleAmplitude, oscillationAmplitude, oscillationPeriod, initialVelocity):
         sumVelocity = np.array([0, 0], dtype=numpy.float64)
         for i in range(numSwimmers):
             swimmerState = newState[i]
@@ -178,17 +177,17 @@ class Simulation:
                 cosSum += np.cos(swimmerInRange[2])
 
             averageAngle = np.arctan2(sinSum, cosSum)
-            randomAngle = (np.random.rand() - 0.5) * randomAngleAmplitude
+            randomAngle = ((np.random.rand() - 0.5) * randomAngleAmplitude)
             sinusOscillation = oscillationAmplitude * np.sin(
-                (t / (2 * fps)) * 2 * np.pi)
+                (2 * np.pi / oscillationPeriod) * t)
             swimmerState[2] = averageAngle + randomAngle + sinusOscillation
 
             xVelCos = np.cos(swimmerState[2])
             yVelSin = np.sin(swimmerState[2])
             sumVelocity += np.array([xVelCos, yVelSin], dtype=numpy.float64)
 
-            swimmerState[0] += initialVelocity * xVelCos * tau
-            swimmerState[1] += initialVelocity * yVelSin * tau
+            swimmerState[0] += initialVelocity * xVelCos
+            swimmerState[1] += initialVelocity * yVelSin
 
             # check for boundary hits
             leftBoundaryHit = (swimmerState[0] <= -environmentSideLength / 2)
@@ -219,9 +218,10 @@ class Simulation:
     @staticmethod
     def nonLinearFitting(x, y, func, initialParameters):
         # curve fit the test data
-        fittedParameters, pcov = curve_fit(func, x, y, initialParameters)
+        fittedParameters, pcov = curve_fit(func, x, y, initialParameters, maxfev=10**4)
 
-        modelPredictions = func(x, *fittedParameters)
+
+        # modelPredictions = func(x, *fittedParameters)
 
         # absError = modelPredictions - y
 
@@ -233,7 +233,7 @@ class Simulation:
         return {'parameters': fittedParameters}
 
     @staticmethod
-    def calculateAbsoluteVelocityTotal(numFrames, absoluteVelocities):
+    def calculateAbsoluteVelocityTotal(timeSteps, framesUsedForMean, absoluteVelocities):
         absoluteVelocities = np.array(absoluteVelocities)
         absoluteVelocities[np.abs(absoluteVelocities) < np.finfo(float).eps] = 0
         # defining exponential function for saturation
@@ -241,20 +241,25 @@ class Simulation:
             return -a * (np.exp(-b * t) - 1)
 
         # find parameters for saturation function
-        t = range(numFrames)
-        initialParameters = [1, 0.1]
-        model = Simulation.nonLinearFitting(t, absoluteVelocities, func, initialParameters)
-        a, b = model['parameters'][0], model['parameters'][1]
-
-        # find the time when system is in saturation for getting the mean value of absolut velocities
-        yprimelim = 10 ** (-5)
-        startMean = np.round(np.maximum(1 / b * np.log(a * b / yprimelim), 0))
+        t = np.array(range(timeSteps))
+        initialParameters = [0.5, 0.1]
 
         try:
-            absolutVelocity = Simulation.getMeanAbsolutVelocity(np.array(absoluteVelocities), startMean)
+            model = Simulation.nonLinearFitting(t / len(absoluteVelocities), absoluteVelocities, func, initialParameters)
+            a, b = model['parameters'][0], model['parameters'][1] / len(absoluteVelocities)
+
+            # find the time when system is in saturation for getting the mean value of absolut velocities
+            yprimelim = 10 ** (-5)
+            saturationBorder = np.round(np.maximum(1/b * np.log(a * b / yprimelim), 0))
+            if saturationBorder > framesUsedForMean:
+                return -3
+        except RuntimeError:
+            return -1
+        try:
+            absolutVelocity = Simulation.getMeanAbsolutVelocity(np.array(absoluteVelocities), framesUsedForMean)
         except ZeroDivisionError:
-            absolutVelocity = 0
-            print(numFrames, np.array(absoluteVelocities))
+            absolutVelocity = -2
+            # print(timeSteps, np.array(absoluteVelocities))
         return absolutVelocity
 
     def animate(self):
@@ -299,8 +304,8 @@ class Simulation:
             # ax.text(0.5, 0.5, "Zeit: {} s".format(i / CONSTANTS["frames"]))
             return self.swimmerPlot, self.rect
 
-        ani = animation.FuncAnimation(self.figure, animate, frames=self.numFrames,
-                                      interval=1000 / self.simulationConstants["fps"], blit=True, init_func=plotInit)
+        ani = animation.FuncAnimation(self.figure, animate, frames=self.timeSteps,
+                                      interval=1000 / 30, blit=True, init_func=plotInit)
 
         # mpl.rcParams['animation.ffmpeg_path'] = r'C:\\Users\\konst\\Desktop\\ffmpeg\\bin\\ffmpeg.exe'
         # f = r"c:\\Users\\konst\\Desktop\\animation.mp4"

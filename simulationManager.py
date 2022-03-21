@@ -52,21 +52,21 @@ class SimulationManager:
         with open(scenarioDataDir + '/absoluteVelocity.txt', 'w') as absoluteVelocityFile:
             json.dump(absoluteVelocity, absoluteVelocityFile)
 
-        if saveTrajectoryData:
+        if saveTrajectoryData or absoluteVelocity <= 0:
             statesData = simulation.getStates()
+            print(absoluteVelocity, scenarioDataDir + '/statesData.npy')
             with open(scenarioDataDir + '/statesData.npy', 'wb') as statesFile:
                 np.save(statesFile, statesData)
 
 
 class SimulationGroup:
-    def __init__(self, simulationDataDir, constantsFunc, numSimulation, repeatNum, saveTrajectoryData = False, time=60, fps=30):
+    def __init__(self, simulationDataDir, constantsFunc, numSimulation, repeatNum, saveTrajectoryData = False, timeSteps = 3600):
         self.simulationDataDir = simulationDataDir
         self.constantsFunc = constantsFunc
         self.numSimulation = numSimulation
         self.repeatNum = repeatNum
         self.saveTrajectoryData = saveTrajectoryData
-        self.time = time
-        self.fps = fps
+        self.timeSteps = timeSteps
 
         if not (os.path.exists(self.simulationDataDir) and os.path.isdir(self.simulationDataDir)):
             os.mkdir(self.simulationDataDir)
@@ -75,7 +75,7 @@ class SimulationGroup:
         for i in range(numSimulation):
             for j in range(repeatNum):
                 scenarioDataDir = self.simulationDataDir + '/' + str(i) + '_' + str(j)
-                self.simulationScenarios.append(SimulationScenario(scenarioDataDir, self.constantsFunc(i, numSimulation, time, fps), self.saveTrajectoryData))
+                self.simulationScenarios.append(SimulationScenario(scenarioDataDir, self.constantsFunc(i, numSimulation, timeSteps), self.saveTrajectoryData))
 
 
 class SimulationScenario:
