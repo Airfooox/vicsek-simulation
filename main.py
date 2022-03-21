@@ -14,40 +14,41 @@ if __name__ == "__main__":
     simulationManager = SimulationManager(simulationDir)
 
 
-    # def sameEtaConstants(i, numSimulation, time, fps):
-    #     return {
-    #         "time": time,
-    #         "fps": fps,
-    #
-    #         "environmentSideLength": 7,
-    #         "numSwimmers": i + 1,
-    #         "interactionRadius": 1,
-    #         "randomAngleAmplitude": 2,
-    #         "oscillationAmplitude": np.pi / 40,
-    #
-    #         "initialVelocity": 0.075,
-    #         "swimmerSize": 0.04,
-    #
-    #         "saveVideo": False,
-    #     }
-    #
-    #
-    # sameEtaGroup = SimulationGroup(simulationDataDir=simulationDir + '/sameEtaGroup', constantsFunc=sameEtaConstants, numSimulation=500, repeatNum=50, saveTrajectoryData=False)
-    # simulationManager.appendGroup(sameEtaGroup)
-
-    def sameRhoConstants400(i, numSimulation, time, fps):
+    def sameEtaConstants(i, numSimulation, defaultTimeSteps):
         return {
-            "time": time,
-            "fps": fps,
+            "timeSteps": 7200,
+            "timePercentageUsedForMean": 25,
+
+            "environmentSideLength": 7,
+            "numSwimmers": i + 1,
+            "interactionRadius": 1,
+            "randomAngleAmplitude": 2,
+            "oscillationAmplitude": np.pi / 40,
+            "oscillationPeriod": 60,  # how many timesteps for one full oscillation
+
+            "initialVelocity": 0.0025,
+            "swimmerSize": 0.04,
+
+            "saveVideo": False,
+        }
+
+    sameEtaGroup = SimulationGroup(simulationDataDir=simulationDir + '/sameEtaGroup', constantsFunc=sameEtaConstants, numSimulation=500, repeatNum=100, saveTrajectoryData=False)
+    simulationManager.appendGroup(sameEtaGroup)
+
+    def sameRhoConstants400(i, numSimulation, defaultTimeSteps):
+        return {
+            "timeSteps": 7200,
+            "timePercentageUsedForMean": 25,
 
             "environmentSideLength": 10,
             "numSwimmers": 400,
             "interactionRadius": 1,
-            "randomAngleAmplitude": 5 * (i / numSimulation),
-            # "oscillationAmplitude": np.pi / 40,
-            "oscillationAmplitude": 0,
+            "randomAngleAmplitude": 15 * (i / numSimulation),
+            "oscillationAmplitude": np.pi / 40,
+            # "oscillationAmplitude": 0,
+            "oscillationPeriod": 60,  # how many timesteps for one full oscillation
 
-            "initialVelocity": 0.075,
+            "initialVelocity": 0.0025,
             "swimmerSize": 0.04,
 
             "saveVideo": False,
@@ -55,66 +56,60 @@ if __name__ == "__main__":
 
 
     sameRhoGroup400 = SimulationGroup(simulationDataDir=simulationDir + '/sameRhoGroup400',
-                                      constantsFunc=sameRhoConstants400, numSimulation=50, repeatNum=50,
+                                      constantsFunc=sameRhoConstants400, numSimulation=100, repeatNum=50,
                                       saveTrajectoryData=False)
-    # simulationManager.appendGroup(sameRhoGroup400)
+    simulationManager.appendGroup(sameRhoGroup400)
 
-    def sameRhoConstants1000(i, numSimulation, time, fps):
+    def sameRhoConstants1000(i, numSimulation, defaultTimeSteps):
         return {
-            "time": 7 * time,
-            "fps": fps,
+            "timeSteps": 7200,
+            "timePercentageUsedForMean": 25,
 
             "environmentSideLength": 15.8113,
             "numSwimmers": 1000,
             "interactionRadius": 1,
-            "randomAngleAmplitude": 5 * (i / numSimulation),
+            "randomAngleAmplitude": 15 * (i / numSimulation),
             # "oscillationAmplitude": np.pi / 40,
             "oscillationAmplitude": 0,
+            "oscillationPeriod": 60,  # how many timesteps for one full oscillation
 
-            "initialVelocity": 0.075,
+            "initialVelocity": 0.0025,
             "swimmerSize": 0.04,
 
             "saveVideo": False,
         }
 
 
-    sameRhoGroup1000 = SimulationGroup(simulationDataDir=simulationDir + '/sameRhoGroup1000',
-                                      constantsFunc=sameRhoConstants1000, numSimulation=50, repeatNum=50,
-                                      saveTrajectoryData=False)
-    simulationManager.appendGroup(sameRhoGroup1000)
+    # sameRhoGroup1000 = SimulationGroup(simulationDataDir=simulationDir + '/sameRhoGroup1000WithoutOcsi',
+    #                                   constantsFunc=sameRhoConstants1000, numSimulation=100, repeatNum=50,
+    #                                   saveTrajectoryData=False)
+    # simulationManager.appendGroup(sameRhoGroup1000)
 
 
-    def sameRhoConstants4000(i, numSimulation, time, fps):
+    def sameRhoConstants4000(i, numSimulation, defaultTimeSteps):
         return {
-            "time": 10 * time,
-            "fps": fps,
+            "timeSteps": 7200,
+            "timePercentageUsedForMean": 25,
 
             "environmentSideLength": 31.6,
             "numSwimmers": 4000,
             "interactionRadius": 1,
-            "randomAngleAmplitude": 5 * (i / numSimulation),
+            "randomAngleAmplitude": 15 * (i / numSimulation),
             # "oscillationAmplitude": np.pi / 40,
             "oscillationAmplitude": 0,
+            "oscillationPeriod": 60, # how many timesteps for one full oscillation
 
-            "initialVelocity": 0.075,
+            "initialVelocity": 0.0025,
             "swimmerSize": 0.04,
 
             "saveVideo": False,
         }
 
 
-    sameRhoGroup4000 = SimulationGroup(simulationDataDir=simulationDir + '/sameRhoGroup4000',
-                                       constantsFunc=sameRhoConstants4000, numSimulation=50, repeatNum=50,
-                                       saveTrajectoryData=False)
+    # sameRhoGroup4000 = SimulationGroup(simulationDataDir=simulationDir + '/sameRhoGroup4000',
+    #                                    constantsFunc=sameRhoConstants4000, numSimulation=100, repeatNum=50,
+    #                                    saveTrajectoryData=False)
     # simulationManager.appendGroup(sameRhoGroup4000)
 
     simulationManager.simulate()
-
-    # constants = sameEtaConstants(1, 1, 15, 1)
-    # simulation = Simulation(constants)
-    # # printProgressBar(0, simulation.numFrames, prefix='Simulation Progress:', suffix='Simulation Complete', length=50)
-    # simulation.simulate()
-    # simulation.getAbsoluteVelocityTotal()
-    # states = simulation.states
     print('That took {} seconds'.format(time.perf_counter() - starttime))
-    # simulation.animate()
