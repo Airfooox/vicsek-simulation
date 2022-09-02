@@ -3,7 +3,7 @@ import json
 import numpy as np
 import multiprocessing as mp
 
-from classes import Simulation
+from Simulation import Simulation
 from util import printProgressBar
 from tqdm import tqdm
 
@@ -31,11 +31,14 @@ class SimulationManager:
 
     @staticmethod
     def runSimulation(simulationScenario):
+        simulationIndex = simulationScenario.simulationIndex
+        numSimulation = simulationScenario.numSimulation
         scenarioDataDir = simulationScenario.scenarioDataDir
         scenarioConstants = simulationScenario.scenarioConstants
+        initialParameterFunc = simulationScenario.initialParameterFunc
         saveTrajectoryData = simulationScenario.saveTrajectoryData
 
-        simulation = Simulation(scenarioConstants)
+        simulation = Simulation(simulationIndex, numSimulation, scenarioConstants, initialParameterFunc)
         simulation.simulate()
         absoluteVelocities = simulation.getAbsoluteVelocities()
         absoluteVelocity = simulation.getAbsoluteVelocityTotal()
@@ -60,9 +63,10 @@ class SimulationManager:
 
 
 class SimulationGroup:
-    def __init__(self, simulationDataDir, constantsFunc, numSimulation, repeatNum, saveTrajectoryData = False, timeSteps = 3600):
+    def __init__(self, simulationDataDir, constantsFunc, initialParameterFunc, numSimulation, repeatNum, saveTrajectoryData = False, timeSteps = 3600):
         self.simulationDataDir = simulationDataDir
         self.constantsFunc = constantsFunc
+        self.initialParameterFunc = initialParameterFunc
         self.numSimulation = numSimulation
         self.repeatNum = repeatNum
         self.saveTrajectoryData = saveTrajectoryData
@@ -72,14 +76,17 @@ class SimulationGroup:
             os.mkdir(self.simulationDataDir)
 
         self.simulationScenarios = []
-        for i in range(numSimulation):
-            for j in range(repeatNum):
-                scenarioDataDir = self.simulationDataDir + '/' + str(i) + '_' + str(j)
-                self.simulationScenarios.append(SimulationScenario(scenarioDataDir, self.constantsFunc(i, numSimulation, timeSteps), self.saveTrajectoryData))
+        for simulationIndex in range(numSimulation):
+            for subSimulationIndex in range(repeatNum):
+                scenarioDataDir = self.simulationDataDir + '/' + str(simulationIndex) + '_' + str(subSimulationIndex)
+                self.simulationScenarios.append(SimulationScenario(simulationIndex, numSimulation, scenarioDataDir, self.constantsFunc(simulationIndex, numSimulation, timeSteps), self.initialParameterFunc, self.saveTrajectoryData))
 
 
 class SimulationScenario:
-    def __init__(self, scenarioDataDir, scenarioConstants, saveTrajectoryData):
+    def __init__(self, simulationIndex, numSimulation, scenarioDataDir, scenarioConstants, initialParameterFunc, saveTrajectoryData):
+        self.simulationIndex = simulationIndex
+        self.numSimulation = numSimulation
         self.scenarioDataDir = scenarioDataDir
         self.scenarioConstants = scenarioConstants
+        self.initialParameterFunc = initialParameterFunc
         self.saveTrajectoryData = saveTrajectoryData

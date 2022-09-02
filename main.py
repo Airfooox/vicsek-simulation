@@ -1,41 +1,33 @@
 # setup
-from classes import Simulation
+import random
+
+from Simulation import Simulation
 from util import printProgressBar
 import numpy as np
 import time
 
-from simulationManager import SimulationManager, SimulationGroup
+from SimulationManager import SimulationManager, SimulationGroup
+
+#TODO:
+# Trajektorien von einzelnen Teilchen bei unterschiedlichen Parametern der Schwingung überprüfen
+# Simulationsbox in Gitter mit Abstand des Interaktionsradius aufteilen, um Interaktionsberechnung effizienter zu machen
+
 
 if __name__ == "__main__":
     starttime = time.perf_counter()
 
-    simulationDir = '/local/kzisiadis/vicsek-simulation'
-    # simulationDir = 'D:/simulationdata'
+    # simulationDir = '/local/kzisiadis/vicsek-simulation'
+    simulationDir = 'D:/simulationdata'
     simulationManager = SimulationManager(simulationDir)
 
 
-    def sameEtaConstants(i, numSimulation, defaultTimeSteps):
+    def initialSwimmerParametersameRhoConstants400PhaseShift90(simulationIndex, totalNumberOfSimulations, swimmerIndex):
         return {
-            "timeSteps": 7200,
-            "timePercentageUsedForMean": 25,
-
-            "environmentSideLength": 7,
-            "numSwimmers": i + 1,
-            "interactionRadius": 1,
-            "randomAngleAmplitude": 2,
             "oscillationAmplitude": np.pi / 40,
             "oscillationPeriod": 60,  # how many timesteps for one full oscillation
-
-            "initialVelocity": 0.0025,
-            "swimmerSize": 0.04,
-
-            "saveVideo": False,
+            "oscillationPhaseshift": random.choice([0, np.pi / 2])
         }
-
-    sameEtaGroup = SimulationGroup(simulationDataDir=simulationDir + '/sameEtaGroup', constantsFunc=sameEtaConstants, numSimulation=500, repeatNum=100, saveTrajectoryData=False)
-    simulationManager.appendGroup(sameEtaGroup)
-
-    def sameRhoConstants400(i, numSimulation, defaultTimeSteps):
+    def sameRhoConstants400PhaseShift90(i, numSimulation, defaultTimeSteps):
         return {
             "timeSteps": 7200,
             "timePercentageUsedForMean": 25,
@@ -44,9 +36,6 @@ if __name__ == "__main__":
             "numSwimmers": 400,
             "interactionRadius": 1,
             "randomAngleAmplitude": 15 * (i / numSimulation),
-            "oscillationAmplitude": np.pi / 40,
-            # "oscillationAmplitude": 0,
-            "oscillationPeriod": 60,  # how many timesteps for one full oscillation
 
             "initialVelocity": 0.0025,
             "swimmerSize": 0.04,
@@ -55,49 +44,27 @@ if __name__ == "__main__":
         }
 
 
-    sameRhoGroup400 = SimulationGroup(simulationDataDir=simulationDir + '/sameRhoGroup400',
-                                      constantsFunc=sameRhoConstants400, numSimulation=100, repeatNum=50,
-                                      saveTrajectoryData=False)
-    simulationManager.appendGroup(sameRhoGroup400)
-
-    def sameRhoConstants1000(i, numSimulation, defaultTimeSteps):
-        return {
-            "timeSteps": 7200,
-            "timePercentageUsedForMean": 25,
-
-            "environmentSideLength": 15.8113,
-            "numSwimmers": 1000,
-            "interactionRadius": 1,
-            "randomAngleAmplitude": 15 * (i / numSimulation),
-            # "oscillationAmplitude": np.pi / 40,
-            "oscillationAmplitude": 0,
-            "oscillationPeriod": 60,  # how many timesteps for one full oscillation
-
-            "initialVelocity": 0.0025,
-            "swimmerSize": 0.04,
-
-            "saveVideo": False,
-        }
-
-
-    # sameRhoGroup1000 = SimulationGroup(simulationDataDir=simulationDir + '/sameRhoGroup1000WithoutOcsi',
-    #                                   constantsFunc=sameRhoConstants1000, numSimulation=100, repeatNum=50,
+    # sameRhoGroup400PhaseShift90 = SimulationGroup(simulationDataDir=simulationDir + '/sameRhoGroup400PhaseShift90',
+    #                                   constantsFunc=sameRhoConstants400PhaseShift90, initialParameterFunc = initialSwimmerParametersameRhoConstants400PhaseShift90,
+    #                                   numSimulation=100, repeatNum=100,
     #                                   saveTrajectoryData=False)
-    # simulationManager.appendGroup(sameRhoGroup1000)
+    # simulationManager.appendGroup(sameRhoGroup400PhaseShift90)
 
-
-    def sameRhoConstants4000(i, numSimulation, defaultTimeSteps):
+    def initialSwimmerParametersameRhoConstants400PhaseShift180(simulationIndex, totalNumberOfSimulations, swimmerIndex):
+        return {
+            "oscillationAmplitude": np.pi / 40,
+            "oscillationPeriod": 60,  # how many timesteps for one full oscillation
+            "oscillationPhaseshift": random.choice([0, np.pi])
+        }
+    def sameRhoConstants400PhaseShift180(i, numSimulation, defaultTimeSteps):
         return {
             "timeSteps": 7200,
             "timePercentageUsedForMean": 25,
 
-            "environmentSideLength": 31.6,
-            "numSwimmers": 4000,
+            "environmentSideLength": 10,
+            "numSwimmers": 400,
             "interactionRadius": 1,
             "randomAngleAmplitude": 15 * (i / numSimulation),
-            # "oscillationAmplitude": np.pi / 40,
-            "oscillationAmplitude": 0,
-            "oscillationPeriod": 60, # how many timesteps for one full oscillation
 
             "initialVelocity": 0.0025,
             "swimmerSize": 0.04,
@@ -106,10 +73,98 @@ if __name__ == "__main__":
         }
 
 
-    # sameRhoGroup4000 = SimulationGroup(simulationDataDir=simulationDir + '/sameRhoGroup4000',
-    #                                    constantsFunc=sameRhoConstants4000, numSimulation=100, repeatNum=50,
-    #                                    saveTrajectoryData=False)
-    # simulationManager.appendGroup(sameRhoGroup4000)
+    # sameRhoGroup400PhaseShift180 = SimulationGroup(simulationDataDir=simulationDir + '/sameRhoGroup400PhaseShift180',
+    #                                   constantsFunc=sameRhoConstants400PhaseShift180, initialParameterFunc = initialSwimmerParametersameRhoConstants400PhaseShift180,
+    #                                   numSimulation=100, repeatNum=100,
+    #                                   saveTrajectoryData=False)
+    # simulationManager.appendGroup(sameRhoGroup400PhaseShift180)
 
-    simulationManager.simulate()
+    def initialSwimmerParametersameEtaConstantsPhaseShift90(simulationIndex, totalNumberOfSimulations, swimmerIndex):
+        return {
+            "oscillationAmplitude": np.pi / 40,
+            "oscillationPeriod": 60,  # how many timesteps for one full oscillation
+            "oscillationPhaseshift": random.choice([0, np.pi / 2])
+        }
+    def sameEtaConstantsPhaseShift90(i, numSimulation, defaultTimeSteps):
+        return {
+            "timeSteps": 7200,
+            "timePercentageUsedForMean": 25,
+
+            "environmentSideLength": 7,
+            "numSwimmers": i + 1,
+            "interactionRadius": 1,
+            "randomAngleAmplitude": 2,
+
+            "initialVelocity": 0.0025,
+            "swimmerSize": 0.04,
+
+            "saveVideo": False,
+        }
+
+
+    # sameEtaGroupPhaseShift90 = SimulationGroup(simulationDataDir=simulationDir + '/sameEtaGroupPhaseShift90', constantsFunc=sameEtaConstantsPhaseShift90,
+    #                                 initialParameterFunc = initialSwimmerParametersameEtaConstantsPhaseShift90,
+    #                                numSimulation=500, repeatNum=100, saveTrajectoryData=False)
+    # simulationManager.appendGroup(sameEtaGroupPhaseShift90)
+
+
+    def initialSwimmerParametersameEtaConstantsPhaseShift180(simulationIndex, totalNumberOfSimulations, swimmerIndex):
+        return {
+            "oscillationAmplitude": np.pi / 40,
+            "oscillationPeriod": 60,  # how many timesteps for one full oscillation
+            "oscillationPhaseshift": random.choice([0, np.pi])
+        }
+    def sameEtaConstantsPhaseShift180(i, numSimulation, defaultTimeSteps):
+        return {
+            "timeSteps": 7200,
+            "timePercentageUsedForMean": 25,
+
+            "environmentSideLength": 7,
+            "numSwimmers": i + 1,
+            "interactionRadius": 1,
+            "randomAngleAmplitude": 2,
+
+            "initialVelocity": 0.0025,
+            "swimmerSize": 0.04,
+
+            "saveVideo": False,
+        }
+
+
+    # sameEtaGroupPhaseShift180 = SimulationGroup(simulationDataDir=simulationDir + '/sameEtaGroupPhaseShift180', constantsFunc=sameEtaConstantsPhaseShift180,
+    #                                             initialParameterFunc=initialSwimmerParametersameEtaConstantsPhaseShift180,
+    #                                numSimulation=500, repeatNum=100, saveTrajectoryData=False)
+    # simulationManager.appendGroup(sameEtaGroupPhaseShift180)
+
+    # simulationManager.simulate()
+
+
+
+
+    def initialSwimmerParameter(simulationIndex, totalNumberOfSimulations, swimmerIndex):
+        return {
+            "oscillationAmplitude": np.pi / 10,
+            "oscillationPeriod": random.choice([30]),  # how many timesteps for one full oscillation
+            "oscillationPhaseshift": random.choice([0, np.pi / 2,  np.pi, 3*np.pi/2, 2*np.pi])
+        }
+    constants = {
+        "timeSteps": 1000,
+        "timePercentageUsedForMean": 25,
+
+        "environmentSideLength": 5,
+        "numSwimmers": 1,
+        "interactionRadius": 1,
+        "randomAngleAmplitude": 0 * 3,
+
+        "initialVelocity": 0.0025,
+        "swimmerSize": 0.04,
+
+        "saveVideo": False,
+    }
+
+    simulation = Simulation(constants, initialSwimmerParameter)
+    simulation.simulate()
+    print(simulation.getAbsoluteVelocityTotal())
     print('That took {} seconds'.format(time.perf_counter() - starttime))
+    simulation.animate()
+

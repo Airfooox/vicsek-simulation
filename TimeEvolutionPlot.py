@@ -32,11 +32,15 @@ if __name__ == "__main__":
     timeEvolutionFile = 'D:/simulationdata/timeEvolutionResult.txt'
     initSimulationScenarioNum = 1
 
+    timePercentageUsedForMean = 25
+
     with open(timeEvolutionFile) as plotFile:
         timeEvolution = json.load(plotFile)
 
     y = timeEvolution[initSimulationScenarioNum]
     x = np.array(range(len(y)))
+
+    framesUsedForMean = np.ceil(((1 - (timePercentageUsedForMean / 100)) * len(y)))
 
     fig, ax = plt.subplots()
     line, = plt.plot(x, y)
@@ -53,10 +57,11 @@ if __name__ == "__main__":
     line2, = plt.plot(xModel, yModel)
 
     yprimelim = 10**(-5)
-    startMean = np.round(np.maximum(1/b * np.log(a * b / yprimelim), 0))
-    print(startMean)
-    vline = plt.axvline(startMean, 0, 1)
-    print("va:", getMeanAbsolutVelocity(np.array(y), startMean))
+    saturationBorder = np.round(np.maximum(1/b * np.log(a * b / yprimelim), 0))
+    print(saturationBorder)
+    vline = plt.axvline(saturationBorder, 0, 1, color="g")
+    plt.axvline(framesUsedForMean, 0, 1, color="r")
+    print("va:", getMeanAbsolutVelocity(np.array(y), saturationBorder))
 
     plt.subplots_adjust(left=0.25, bottom=0.25)
 

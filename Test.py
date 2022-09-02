@@ -7,7 +7,7 @@ import matplotlib.animation as animation
 import os
 
 if __name__ == "__main__":
-    dir = 'D:/testsimulationdata/494_36'
+    dir = 'D:/simulationdata/sameRhoGroup400PhaseShift90_23_84'
 
     with open(dir + '/constants.txt') as constantFile:
         constants = json.load(constantFile)
@@ -19,8 +19,8 @@ if __name__ == "__main__":
     #     json.dump(timeEvolutionData.tolist(), timeEvolutionFile)
 
     @njit
-    def getMeanAbsolutVelocity(absoluteVelocities, startMean):
-        arr = absoluteVelocities[startMean:]
+    def getMeanAbsolutVelocity(absoluteVelocities, framesUsedForMean):
+        arr = absoluteVelocities[framesUsedForMean:]
         mean = 0
         for absoluteVelocity in arr:
             mean += absoluteVelocity
@@ -100,7 +100,7 @@ if __name__ == "__main__":
 
         plt.show()
 
-    def calculateAbsoluteVelocityTotal(timeSteps, absoluteVelocities):
+    def calculateAbsoluteVelocityTotal(timeSteps, framesUsedForMean, absoluteVelocities):
         absoluteVelocities = np.array(absoluteVelocities)
         absoluteVelocities[np.abs(absoluteVelocities) < np.finfo(float).eps] = 0
 
@@ -109,15 +109,15 @@ if __name__ == "__main__":
             return -a * (np.exp(-b * t) - 1)
 
         # find parameters for saturation function
-        start = 0
-        t = range(timeSteps)
+        t = np.array(range(timeSteps))
         initialParameters = [0.5, 0.1]
-        model = nonLinearFitting(t[start:], absoluteVelocities[start:], func, initialParameters)
-        a, b = model['parameters'][0], model['parameters'][1]
+
+        model = nonLinearFitting(t / len(absoluteVelocities), absoluteVelocities, func, initialParameters)
+        a, b = model['parameters'][0], model['parameters'][1] / len(absoluteVelocities)
 
         # find the time when system is in saturation for getting the mean value of absolut velocities
         yprimelim = 10 ** (-5)
-        startMean = np.round(np.maximum(1 / b * np.log(a * b / yprimelim), 0))
+        saturationBorder = np.round(np.maximum(1 / b * np.log(a * b / yprimelim), 0))
 
         fig, ax = plt.subplots()
         plt.plot(t, absoluteVelocities)
@@ -125,22 +125,27 @@ if __name__ == "__main__":
         print(a, b)
         yModel = func(xModel, a, b)
         plt.plot(xModel, yModel)
-        plt.axvline(startMean, 0, 1)
+        plt.axvline(saturationBorder, 0, 1, color="g")
+        plt.axvline(framesUsedForMean, 0, 1, color="r")
 
         plt.ylim([0, 1.1])
 
-
         try:
-
-            absolutVelocity = getMeanAbsolutVelocity(np.array(absoluteVelocities), startMean)
-            print(startMean, absolutVelocity)
+            if saturationBorder > framesUsedForMean:
+                print(-3)
+        except RuntimeError:
+            print(-1)
+        try:
+            absolutVelocity = getMeanAbsolutVelocity(np.array(absoluteVelocities), framesUsedForMean)
         except ZeroDivisionError:
-            absolutVelocity = 0
+            absolutVelocity = -2
             print(timeSteps, np.array(absoluteVelocities))
 
         plt.show()
         plt.close('all')
         return absolutVelocity
 
-    print(calculateAbsoluteVelocityTotal(len(timeEvolutionData), timeEvolutionData))
+
+    framesUsedForMean = np.ceil(((1 - (constants["timePercentageUsedForMean"] / 100)) * constants["timeSteps"]))
+    print(calculateAbsoluteVelocityTotal(len(timeEvolutionData), framesUsedForMean, timeEvolutionData))
     # animate()

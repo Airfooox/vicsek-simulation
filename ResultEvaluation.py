@@ -76,7 +76,7 @@ def calculateResult(calculationData):
         constants = json.load(constantsFile)
 
     timeSteps = constants['timeSteps']
-    framesUsedForMean = np.floor((timePercentageUsedForMean / 100) * timeSteps)
+    framesUsedForMean = np.ceil(((1 - (constants["timePercentageUsedForMean"] / 100)) * constants["timeSteps"]))
     timeEvolution = np.zeros((timeSteps), dtype=np.float64)
 
     selectedSubVelocities = []
@@ -146,13 +146,13 @@ def calculateResult(calculationData):
     dict[num] = {'va': absoluteVelocity, 'std': std, 'constants': constants, 'timeEvolution': timeEvolution.tolist()}
 
 if __name__ == "__main__":
-    dir = '/local/kzisiadis/vicsek-simulation/sameEtaGroup'
+    dir = '/local/kzisiadis/vicsek-simulation/sameRhoGroup400'
     timePercentageUsedForMean = 25
     reevaluateAbsoluteVelocities = True
 
     manager = mp.Manager()
     simulationGroupDirectory = manager.dict()
-    simulationGroupRange = range(500)
+    simulationGroupRange = range(100)
 
     simulationGroupPool = []
     for i in simulationGroupRange:
@@ -165,8 +165,6 @@ if __name__ == "__main__":
     pool.close()
     pool.join()
 
-    def takeKeyToSort(element):
-        return element[0]
     sortedDict = sorted(simulationGroupDirectory.items(), key = lambda x : x[0])
     x, y, std = [], [], []
     timeEvolution = []
@@ -175,8 +173,8 @@ if __name__ == "__main__":
         index = entry[0]
         result = entry[1]
         # print(result['constants']['numSwimmers']/((result['constants']['environmentSideLength'])**2), result['va'])
-        x.append(result['constants']['numSwimmers']/((result['constants']['environmentSideLength'])**2))
-        # x.append(result['constants']['randomAngleAmplitude'])
+        # x.append(result['constants']['numSwimmers']/((result['constants']['environmentSideLength'])**2))
+        x.append(result['constants']['randomAngleAmplitude'])
         # x.append(result['constants']['oscillationAmplitude'])
         y.append(result['va'])
         std.append(result['std'])
