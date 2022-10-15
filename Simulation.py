@@ -12,10 +12,10 @@ import time
 
 
 class Simulation:
-    def __init__(self, simulationIndex, numSimulation, CONSTANTS, initialParameterFunc):
-        self.simulationConstants = CONSTANTS
+    def __init__(self, simulationIndex, numSimulation, constants, initialParameterFunc, timePercentageUsedForMean):
+        self.simulationConstants = constants
         self.timeSteps = self.simulationConstants["timeSteps"]
-        self.framesUsedForMean = np.ceil(((1 - (self.simulationConstants["timePercentageUsedForMean"] / 100)) * self.timeSteps))
+        self.framesUsedForMean = np.ceil(((1 - (timePercentageUsedForMean / 100)) * self.timeSteps))
 
         # initialize the swimmers with position, angle of velocity, amplitude, period and phase difference
         self.swimmers = []
@@ -24,9 +24,12 @@ class Simulation:
         for swimmerIndex in range(self.simulationConstants["numSwimmers"]):
             initialParameter = initialParameterFunc(simulationIndex, numSimulation, swimmerIndex)
 
-            xPos = - self.simulationConstants["environmentSideLength"] / 4  #= np.random.rand() * self.simulationConstants["environmentSideLength"] - self.simulationConstants["environmentSideLength"] / 2
-            yPos = 0 #= np.random.rand() * self.simulationConstants["environmentSideLength"] - self.simulationConstants["environmentSideLength"] / 2
-            vPhi = np.random.rand() * 2 * np.pi * 0 # angle in rad
+            xPos = - self.simulationConstants["environmentSideLength"] / 4
+            yPos = 0
+
+            xPos = np.random.rand() * self.simulationConstants["environmentSideLength"] - self.simulationConstants["environmentSideLength"] / 2
+            yPos = np.random.rand() * self.simulationConstants["environmentSideLength"] - self.simulationConstants["environmentSideLength"] / 2
+            vPhi = np.random.rand() * 2 * np.pi # angle in rad
             oscillationAmplitude = initialParameter["oscillationAmplitude"]
             oscillationPeriod = initialParameter["oscillationPeriod"]
             oscillationPhaseShift = initialParameter["oscillationPhaseshift"]
@@ -176,7 +179,7 @@ class Simulation:
                 sinSum += np.sin(swimmerInRange[2])
                 cosSum += np.cos(swimmerInRange[2])
 
-            averageAngle = np.arctan2(sinSum, cosSum) * 0
+            averageAngle = np.arctan2(sinSum, cosSum)
             randomAngle = ((np.random.rand() - 0.5) * randomAngleAmplitude)
             cosinusOscillation = swimmerState[3] * np.cos(
                 (2 * np.pi / swimmerState[4]) * t + swimmerState[5])
@@ -282,10 +285,12 @@ class Simulation:
         initialY = initialState[:, 1]
         initialPhi = initialState[:, 2]
         self.swimmerPlot = self.axis.quiver(initialX, initialY, np.cos(initialPhi), np.sin(initialPhi), initialPhi % 2*np.pi, cmap=plt.get_cmap("twilight"), clim=[0, 2*np.pi], pivot="middle", scale=250, units="width", width=0.0005, headwidth= 30, headlength=50, headaxislength=45,minshaft=0.99, minlength=0)
+
         self.trajectoryLines = []
-        for i in range(self.simulationConstants["numSwimmers"]):
-            trajectoryLine, = self.axis.plot([], [], "go", ms=0.75)
-            self.trajectoryLines.append(trajectoryLine)
+        if self.simulationConstants['numSwimmers'] <= 10:
+            for i in range(self.simulationConstants["numSwimmers"]):
+                trajectoryLine, = self.axis.plot([], [], "go", ms=0.75)
+                self.trajectoryLines.append(trajectoryLine)
 
         self.figure.colorbar(self.swimmerPlot, ax=self.axis)
 
@@ -293,7 +298,8 @@ class Simulation:
             # microswimmersPlot.set_offsets([], [])
             self.rect.set_edgecolor('none')
             for i in range(self.simulationConstants["numSwimmers"]):
-                self.trajectoryLines[i].set_data([], [])
+                if self.simulationConstants['numSwimmers'] <= 10:
+                    self.trajectoryLines[i].set_data([], [])
 
             # an array of all updates objects must be returned in this function, here the scatter plot, rect and all of the trajectory line plots
             iterableArtists = [self.swimmerPlot, self.rect] + self.trajectoryLines
@@ -320,7 +326,8 @@ class Simulation:
             self.swimmerPlot.set_UVC(np.cos(phi), np.sin(phi) , phi % 2*np.pi)
 
             for i in range(self.simulationConstants["numSwimmers"]):
-                self.trajectoryLines[i].set_data(self.states[:t, i, 0], self.states[:t, i, 1])
+                if self.simulationConstants['numSwimmers'] <= 10:
+                    self.trajectoryLines[i].set_data(self.states[:t, i, 0], self.states[:t, i, 1])
 
             # ax.text(0.5, 0.5, "Zeit: {} s".format(i / CONSTANTS["frames"]))
 
@@ -331,14 +338,15 @@ class Simulation:
         ani = animation.FuncAnimation(self.figure, func=animate, frames=self.timeSteps,
                                       interval=1000 / 60, blit=True, init_func=plotInit)
 
-        # mpl.rcParams['animation.ffmpeg_path'] = r'C:\\Users\\konst\\Desktop\\ffmpeg\\bin\\ffmpeg.exe'
-        # f = r"c:\\Users\\konst\\Desktop\\animation.mp4"
-        # writervideo = animation.FFMpegWriter(fps=self.simulationConstants["fps"], bitrate=3000)
-        # ani.save(
-        #     f, writer=writervideo,
-        #     progress_callback=lambda i, n: printProgressBar(i, n, prefix='Animation Progress:',
-        #                                                     suffix='Animation Complete', length=50)
-        # )
+        if self.simulationConstants['saveVideo']:
+            mpl.rcParams['animation.ffmpeg_path'] = r'C:\\Users\\konst\\Desktop\\ffmpeg\\bin\\ffmpeg.exe'
+            f = r"c:\\Users\\konst\\Desktop\\animation.mp4"
+            writervideo = animation.FFMpegWriter(fps=60, bitrate=3000, codec='h264_nvenc')
+            ani.save(
+                f, writer=writervideo,
+                progress_callback=lambda i, n: printProgressBar(i, n, prefix='Animation Progress:',
+                                                                suffix='Animation Complete', length=50)
+            )
 
         plt.show()
 

@@ -18,14 +18,14 @@ if __name__ == "__main__":
 
     def singleSwimmerConstantsInitialParameter(simulationIndex, totalNumberOfSimulations, swimmerIndex):
         return {
-            "oscillationAmplitude": np.pi / 16,
-            "oscillationPeriod": 80,  # how many timesteps for one full oscillation
+            "oscillationAmplitude": np.pi / 64,
+            "oscillationPeriod": 140,  # how many timesteps for one full oscillation
             "oscillationPhaseshift": 0
         }
 
 
     CONSTANTS = {
-        "timeSteps": 250,
+        "timeSteps": 500,
         "timePercentageUsedForMean": 25,
 
         "environmentSideLength": 2,

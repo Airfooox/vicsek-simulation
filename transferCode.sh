@@ -2,7 +2,7 @@
 
 selectUplaodTarget() {
     echo "Select target computer to uoload:"
-    echo "(ka)enguru, (ko)ala, (s)patz"
+    echo "(ka)enguru, (ko)ala, (s)patz, (*)all"
     read TARGET 
 
     echo "The target computer is: $TARGET"
@@ -17,6 +17,12 @@ selectUplaodTarget() {
             ;;
         
         "s" | "spatz")
+            scp *.py kzisiadis@twmb-spatz.nat.uni-magdeburg.de:~/code/vicsek-simulation/
+            ;;
+
+        "*" | "all")
+            scp *.py kzisiadis@twmb-kaenguru.nat.uni-magdeburg.de:~/code/vicsek-simulation/
+            scp *.py kzisiadis@twmb-koala.nat.uni-magdeburg.de:~/code/vicsek-simulation/
             scp *.py kzisiadis@twmb-spatz.nat.uni-magdeburg.de:~/code/vicsek-simulation/
             ;;
 

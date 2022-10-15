@@ -1,23 +1,54 @@
+import os
 import json
+import itertools
+import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import matplotlib.colors
 
 if __name__ == "__main__":
-    plotResultFileDir1 = 'E:/simulationdata/phaseShift/samerho400/plotResultNoPhaseShift.txt'
-    plotResultFileDir2 = 'E:/simulationdata/phaseShift/samerho400/plotResult90Phase.txt'
-    plotResultFileDir3 = 'E:/simulationdata/phaseShift/samerho400/plotResult180Phase.txt'
+    plotResultDir = "C:\\Users\\konst\\OneDrive\\Uni\\Anstellung\\Prof. Menzel (2020-22)\\vicsek\\daten\\parameter_test\\N=400"
+    dirList = os.listdir(plotResultDir)
 
-    with open(plotResultFileDir1) as plotFile:
-        resultObj400 = json.load(plotFile)
+    attributeAsX = 'randomAngleAmplitude'
 
-    with open(plotResultFileDir2) as plotFile:
-        resultObj400_90 = json.load(plotFile)
+    plotResultFiles = []
+    for entry in dirList:
+        filePath = os.path.join(plotResultDir, entry)
+        entryArgs = entry[:-4].split('_')
+        if os.path.isfile(filePath) and len(entryArgs) > 1 and entry.split('_')[0] == 'plotResult':
+            numSwimmers = entryArgs[2].split('=')[1]
+            rho = entryArgs[3].split('=')[1]
+            amplitude = entryArgs[4].split('=')[1]
+            period = entryArgs[5].split('=')[1]
 
-    with open(plotResultFileDir3) as plotFile:
-        resultObj400_180 = json.load(plotFile)
+            with open(filePath) as plotFile:
+                resultObj = json.load(plotFile)
+                x = resultObj[attributeAsX]
+                y = resultObj['absoluteVelocity']
+                std = resultObj['std']
 
-    plt.errorbar(resultObj400['x'], resultObj400['y'], yerr=resultObj400['std'], fmt='ro', label='$\Delta \phi = 0$')
-    plt.errorbar(resultObj400_90['x'], resultObj400_90['y'], yerr=resultObj400_90['std'], fmt='gx', label='$\Delta \phi = 90$')
-    plt.errorbar(resultObj400_180['x'], resultObj400_180['y'], yerr=resultObj400_180['std'], fmt='b*', label='$\Delta \phi = 180$')
+            plotResultFiles.append(
+                {'entry': entry, 'numSwimmers': numSwimmers, 'rho': rho, 'amplitude': amplitude, 'period': period,
+                 'x': x, 'y': y, 'std': std})
+
+    colors = cm.tab20(range(20))
+
+    for i, plotResultEntry in enumerate(plotResultFiles):
+        numSwimmers = plotResultEntry['numSwimmers']
+        rho = plotResultEntry['rho']
+        amplitude = plotResultEntry['amplitude']
+        period = plotResultEntry['period']
+        if int(numSwimmers) == 400:
+            marker='^'
+        elif int(numSwimmers) == 1000:
+            marker='x'
+        else:
+            marker='D'
+
+        plt.errorbar(plotResultEntry['x'], plotResultEntry['y'], yerr=plotResultEntry['std'], fmt= matplotlib.colors.rgb2hex(colors[i]), marker=marker, linestyle='none',
+                     label=f'$N={numSwimmers}, \\varrho={rho}, A={amplitude}, T={period}$')
+
     # plt.xlabel(r'$\rho \longrightarrow$')
     plt.xlabel(r'$\eta \longrightarrow$')
     # plt.xlabel(r'$A \longrightarrow$')
