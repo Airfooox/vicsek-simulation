@@ -3,55 +3,52 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from scipy.optimize import curve_fit
-from scipy.spatial.distance import pdist, squareform
-from numba import njit
-
-import util
+from scipy.spatial.distance import pdist, squareform, cdist
+from numba import jit, njit
 from util import printProgressBar
+
 import time
 
 
 class Simulation:
-    def __init__(self, simulationIndex, numSimulation, constants, initialParameterFunc, timePercentageUsedForMean):
+    def __init__(self, simulationIndex, numSimulation, constants, timePercentageUsedForMean):
         self.simulationConstants = constants
-        self.timeSteps = self.simulationConstants["timeSteps"]
-        self.framesUsedForMean = np.ceil(((1 - (timePercentageUsedForMean / 100)) * self.timeSteps))
+        self.framesUsedForMean = np.ceil(
+            ((1 - (timePercentageUsedForMean / 100)) * self.simulationConstants["timeSteps"]))
 
-        # initialize the swimmers with position, angle of velocity, amplitude, period and phase difference
-        self.swimmers = []
-        # self.swimmers.append([0, 00, 0, np.pi / 20, 60, 0])
-        # self.swimmers.append([0, -1, 0, np.pi / 20, 60, np.pi])
-        for swimmerIndex in range(self.simulationConstants["numSwimmers"]):
-            initialParameter = initialParameterFunc(simulationIndex, numSimulation, swimmerIndex)
-
-            xPos = - self.simulationConstants["environmentSideLength"] / 4
-            yPos = 0
-
-            xPos = np.random.rand() * self.simulationConstants["environmentSideLength"] - self.simulationConstants["environmentSideLength"] / 2
-            yPos = np.random.rand() * self.simulationConstants["environmentSideLength"] - self.simulationConstants["environmentSideLength"] / 2
-            vPhi = np.random.rand() * 2 * np.pi # angle in rad
-            oscillationAmplitude = initialParameter["oscillationAmplitude"]
-            oscillationPeriod = initialParameter["oscillationPeriod"]
-            oscillationPhaseShift = initialParameter["oscillationPhaseshift"]
-            self.swimmers.append([xPos, yPos, vPhi, oscillationAmplitude, oscillationPeriod, oscillationPhaseShift])
+        # initialize the swimmers with position, angle of velocity, amplitude, period and phase shift
+        initialSwimmerState = []
+        for groupIdentifier, groupConfig in self.simulationConstants['groups'].items():
+            for swimmerIndex in range(groupConfig["numSwimmers"]):
+                xPos = np.random.rand() * self.simulationConstants["environmentSideLength"] - self.simulationConstants[
+                    "environmentSideLength"] / 2
+                yPos = np.random.rand() * self.simulationConstants["environmentSideLength"] - self.simulationConstants[
+                    "environmentSideLength"] / 2
+                vPhi = np.random.rand() * 2 * np.pi  # angle in rad
+                oscillationAmplitude = groupConfig["oscillationAmplitude"]
+                oscillationPeriod = groupConfig["oscillationPeriod"]
+                oscillationPhaseShift = groupConfig["oscillationPhaseshift"]
+                initialSwimmerState.append(
+                    [xPos, yPos, vPhi, oscillationAmplitude, oscillationPeriod, oscillationPhaseShift])
+        self.numSwimmers = len(initialSwimmerState)
+        print(self.numSwimmers)
 
         # initialize states array and add initial values for first frame
-        self.states = np.empty((self.timeSteps, self.simulationConstants["numSwimmers"], 6), dtype=np.float64)
-        for swimmerIndex in range(self.simulationConstants["numSwimmers"]):
-            swimmerState = np.array([self.swimmers[swimmerIndex]], dtype=np.float64)
-            self.states[0][swimmerIndex] = swimmerState
+        self.states = np.zeros((self.simulationConstants["timeSteps"], self.numSwimmers, 6), dtype=np.float64)
+        self.absoluteVelocities = np.zeros((self.simulationConstants["timeSteps"]), dtype=np.float64)
 
-        self.absoluteVelocities = np.empty((self.timeSteps), dtype=np.float64)
+        self.states[0] = np.array(initialSwimmerState, dtype=np.float64)
+        self.starttime = None
 
     def simulate(self):
-        for t in range (1, self.timeSteps):
-           self.states[t], self.absoluteVelocities[t]  = self.simulationStep(t)
+        for t in range(1, self.simulationConstants["timeSteps"]):
+            self.states[t], self.absoluteVelocities[t] = self.simulationStep(t)
 
-            # printProgressBar(t, self.timeSteps - 1, prefix='Simulation Progress:', suffix='Simulation Complete', length=50)
+            # printProgressBar(t, self.simulationConstants["timeSteps"] - 1, prefix='Simulation Progress:', suffix='Simulation Complete', length=50)
 
         return self.states
 
-    # @njit
+    # @jit
     def simulationStep(self, t):
         previousState = []
         try:
@@ -59,38 +56,39 @@ class Simulation:
         except IndexError:
             previousState = self.simulationStep(t - 1)
 
-
-
-        # _pdist = pdist(previousState[:, :2])
-        distances = squareform(pdist(previousState[:, :2])) # symmetric matric with all distances between the particles
+        # symmetric matric with all distances between the particles
+        distances = cdist(previousState[:, :2], previousState[:, :2], metric='euclidean')
+        # distances = squareform(pdist(previousState[:, :2]))
         index1, index2 = np.where(distances <= self.simulationConstants["interactionRadius"])
-        uniqueDistance = (index1 != index2) # because the matrix is symmetric, throw out all diagonal, because its all zero
+        # because the matrix is symmetric, throw out all diagonal, because its all zero
+        uniqueDistance = (index1 != index2)
         index1 = index1[uniqueDistance]
         index2 = index2[uniqueDistance]
 
         newState = previousState.copy()
 
-        numSwimmers = self.simulationConstants["numSwimmers"]
+        numSwimmers = self.numSwimmers
         environmentSideLength = self.simulationConstants["environmentSideLength"]
         interactionRadius = self.simulationConstants["interactionRadius"]
         randomAngleAmplitude = self.simulationConstants["randomAngleAmplitude"]
         initialVelocity = self.simulationConstants["initialVelocity"]
 
         # [newState, absoluteVelocity] =
-        return self.calculateNewState(t, previousState, newState, index1, index2, numSwimmers, environmentSideLength, interactionRadius, randomAngleAmplitude, initialVelocity)
+        if self.starttime is not None:
+            print(t, 'That took {} seconds'.format(time.perf_counter() - self.starttime))
 
-    def getStates(self):
-        return self.states
-
-    def getAbsoluteVelocities(self):
-        return self.absoluteVelocities
+        self.starttime = time.perf_counter()
+        return self.calculateNewState(t, previousState, newState, index1, index2, numSwimmers, environmentSideLength,
+                                      interactionRadius, randomAngleAmplitude, initialVelocity)
 
     def getAbsoluteVelocityTotal(self):
-        return Simulation.calculateAbsoluteVelocityTotal(self.timeSteps, self.framesUsedForMean, self.absoluteVelocities)
+        return Simulation.calculateAbsoluteVelocityTotal(self.simulationConstants["timeSteps"], self.framesUsedForMean,
+                                                         self.absoluteVelocities)
 
     @staticmethod
     @njit
-    def calculateNewState(t, previousState, newState, index1, index2, numSwimmers, environmentSideLength, interactionRadius, randomAngleAmplitude, initialVelocity):
+    def calculateNewState(t, previousState, newState, index1, index2, numSwimmers, environmentSideLength,
+                          interactionRadius, randomAngleAmplitude, initialVelocity):
         sumVelocity = np.array([0, 0], dtype=np.float64)
         for i in range(numSwimmers):
             swimmerState = newState[i]
@@ -109,7 +107,7 @@ class Simulation:
             downInteractionBoundaryHit = (swimmerState[1] < -environmentSideLength / 2 +
                                           interactionRadius)
 
-            shadowSwimmerPositions = np.empty((0), dtype=np.float64)
+            shadowSwimmerPositions = np.zeros((0), dtype=np.float64)
             if leftInteractionBoundaryHit:
                 newShadowState = swimmerState.copy()
                 newShadowState[0] += environmentSideLength
@@ -164,7 +162,7 @@ class Simulation:
                         shadowPosition = shadowSwimmerPositions[k]
                         shadowDistanceSwimmer = previousState[j]
                         distanceBetween = (shadowPosition[0] - shadowDistanceSwimmer[0]) ** 2 + (
-                                    shadowPosition[1] - shadowDistanceSwimmer[1]) ** 2
+                                shadowPosition[1] - shadowDistanceSwimmer[1]) ** 2
                         if distanceBetween ** 2 <= interactionRadius:
                             index1 = np.append(index1, [i])
                             index2 = np.append(index2, [j])
@@ -181,9 +179,9 @@ class Simulation:
 
             averageAngle = np.arctan2(sinSum, cosSum)
             randomAngle = ((np.random.rand() - 0.5) * randomAngleAmplitude)
-            cosinusOscillation = swimmerState[3] * np.cos(
+            cosinesOscillation = swimmerState[3] * np.cos(
                 (2 * np.pi / swimmerState[4]) * t + swimmerState[5])
-            swimmerState[2] = averageAngle + randomAngle + cosinusOscillation
+            swimmerState[2] = averageAngle + randomAngle + cosinesOscillation
 
             xVelCos = np.cos(swimmerState[2])
             yVelSin = np.sin(swimmerState[2])
@@ -212,17 +210,12 @@ class Simulation:
     @staticmethod
     @njit
     def getMeanAbsolutVelocity(absoluteVelocities, startMean):
-        arr = absoluteVelocities[startMean:]
-        mean = 0
-        for absoluteVelocity in arr:
-            mean += absoluteVelocity
-        return mean / len(arr)
+        return np.mean(absoluteVelocities[startMean:])
 
     @staticmethod
     def nonLinearFitting(x, y, func, initialParameters):
         # curve fit the test data
-        fittedParameters, pcov = curve_fit(func, x, y, initialParameters, maxfev=10**4)
-
+        fittedParameters, pcov = curve_fit(func, x, y, initialParameters, maxfev=10 ** 4)
 
         # modelPredictions = func(x, *fittedParameters)
 
@@ -239,6 +232,7 @@ class Simulation:
     def calculateAbsoluteVelocityTotal(timeSteps, framesUsedForMean, absoluteVelocities):
         absoluteVelocities = np.array(absoluteVelocities)
         absoluteVelocities[np.abs(absoluteVelocities) < np.finfo(float).eps] = 0
+
         # defining exponential function for saturation
         def func(t, a, b):
             return -a * (np.exp(-b * t) - 1)
@@ -248,14 +242,16 @@ class Simulation:
         initialParameters = [0.5, 0.1]
 
         try:
-            model = Simulation.nonLinearFitting(t / len(absoluteVelocities), absoluteVelocities, func, initialParameters)
+            model = Simulation.nonLinearFitting(t / len(absoluteVelocities), absoluteVelocities, func,
+                                                initialParameters)
             a, b = model['parameters'][0], model['parameters'][1] / len(absoluteVelocities)
 
             # find the time when system is in saturation for getting the mean value of absolut velocities
             yprimelim = 10 ** (-5)
-            saturationBorder = np.round(np.maximum(1/b * np.log(a * b / yprimelim), 0))
+            saturationBorder = np.round(np.maximum(1 / b * np.log(a * b / yprimelim), 0))
             if saturationBorder > framesUsedForMean:
-                return -3
+                pass
+                # return -3
         except RuntimeError:
             return -1
         try:
@@ -271,12 +267,13 @@ class Simulation:
         self.figure.subplots_adjust(left=0, right=1, bottom=0, top=1)
         limits = self.simulationConstants["environmentSideLength"] / 2 + 0.2
         self.axis = self.figure.add_subplot(111, aspect='equal', autoscale_on=False,
-                             xlim=(-limits, limits), ylim=(-limits, limits))
+                                            xlim=(-limits, limits), ylim=(-limits, limits))
 
-        self.rect = plt.Rectangle((-self.simulationConstants["environmentSideLength"] / 2, -self.simulationConstants["environmentSideLength"] / 2),
-                             self.simulationConstants["environmentSideLength"],
-                             self.simulationConstants["environmentSideLength"],
-                             ec='none', lw=2, fc='none')
+        self.rect = plt.Rectangle((-self.simulationConstants["environmentSideLength"] / 2,
+                                   -self.simulationConstants["environmentSideLength"] / 2),
+                                  self.simulationConstants["environmentSideLength"],
+                                  self.simulationConstants["environmentSideLength"],
+                                  ec='none', lw=2, fc='none')
         self.axis.add_patch(self.rect)
 
         # initialize plot with empty position data, cyclic colormap and swimmer phase as data for the color map
@@ -284,11 +281,14 @@ class Simulation:
         initialX = initialState[:, 0]
         initialY = initialState[:, 1]
         initialPhi = initialState[:, 2]
-        self.swimmerPlot = self.axis.quiver(initialX, initialY, np.cos(initialPhi), np.sin(initialPhi), initialPhi % 2*np.pi, cmap=plt.get_cmap("twilight"), clim=[0, 2*np.pi], pivot="middle", scale=250, units="width", width=0.0005, headwidth= 30, headlength=50, headaxislength=45,minshaft=0.99, minlength=0)
+        self.swimmerPlot = self.axis.quiver(initialX, initialY, np.cos(initialPhi), np.sin(initialPhi),
+                                            initialPhi % 2 * np.pi, cmap=plt.get_cmap("twilight"), clim=[0, 2 * np.pi],
+                                            pivot="middle", scale=250, units="width", width=0.0005, headwidth=30,
+                                            headlength=50, headaxislength=45, minshaft=0.99, minlength=0)
 
         self.trajectoryLines = []
-        if self.simulationConstants['numSwimmers'] <= 10:
-            for i in range(self.simulationConstants["numSwimmers"]):
+        if self.numSwimmers <= 10:
+            for i in range(self.numSwimmers):
                 trajectoryLine, = self.axis.plot([], [], "go", ms=0.75)
                 self.trajectoryLines.append(trajectoryLine)
 
@@ -297,8 +297,8 @@ class Simulation:
         def plotInit():
             # microswimmersPlot.set_offsets([], [])
             self.rect.set_edgecolor('none')
-            for i in range(self.simulationConstants["numSwimmers"]):
-                if self.simulationConstants['numSwimmers'] <= 10:
+            for i in range(self.numSwimmers):
+                if self.numSwimmers <= 10:
                     self.trajectoryLines[i].set_data([], [])
 
             # an array of all updates objects must be returned in this function, here the scatter plot, rect and all of the trajectory line plots
@@ -310,7 +310,7 @@ class Simulation:
 
             markerSize = int(self.figure.dpi * 2 * self.simulationConstants["swimmerSize"] * self.figure.get_figwidth()
                              / np.diff(self.axis.get_xbound())[0])
-            areaSize = np.ones(self.simulationConstants["numSwimmers"]) * 0.5 * markerSize ** 2
+            areaSize = np.ones(self.numSwimmers) * 0.5 * markerSize ** 2
 
             self.rect.set_edgecolor('k')
 
@@ -323,10 +323,10 @@ class Simulation:
             # [x1, x2, ..., xn] and [y1, y2, ..., yn] -> [[x1, y1], [x2,y2], ..., [xn, yn]]
             self.swimmerPlot.set_offsets(np.c_[x, y])
             self.swimmerPlot.set_sizes(areaSize)
-            self.swimmerPlot.set_UVC(np.cos(phi), np.sin(phi) , phi % 2*np.pi)
+            self.swimmerPlot.set_UVC(np.cos(phi), np.sin(phi), phi % 2 * np.pi)
 
-            for i in range(self.simulationConstants["numSwimmers"]):
-                if self.simulationConstants['numSwimmers'] <= 10:
+            for i in range(self.numSwimmers):
+                if self.numSwimmers <= 10:
                     self.trajectoryLines[i].set_data(self.states[:t, i, 0], self.states[:t, i, 1])
 
             # ax.text(0.5, 0.5, "Zeit: {} s".format(i / CONSTANTS["frames"]))
@@ -335,7 +335,7 @@ class Simulation:
             iterableArtists = [self.swimmerPlot, self.rect] + self.trajectoryLines
             return iterableArtists
 
-        ani = animation.FuncAnimation(self.figure, func=animate, frames=self.timeSteps,
+        ani = animation.FuncAnimation(self.figure, func=animate, frames=self.simulationConstants["timeSteps"],
                                       interval=1000 / 60, blit=True, init_func=plotInit)
 
         if self.simulationConstants['saveVideo']:
@@ -349,4 +349,3 @@ class Simulation:
             )
 
         plt.show()
-

@@ -36,13 +36,12 @@ class SimulationManager:
         numSimulation = simulationScenario.numSimulation
         scenarioDataDir = simulationScenario.scenarioDataDir
         scenarioConstants = simulationScenario.scenarioConstants
-        initialParameterFunc = simulationScenario.initialParameterFunc
         timePercentageUsedForMean = simulationScenario.timePercentageUsedForMean
         saveTrajectoryData = simulationScenario.saveTrajectoryData
 
-        simulation = Simulation(simulationIndex, numSimulation, scenarioConstants, initialParameterFunc, timePercentageUsedForMean)
+        simulation = Simulation(simulationIndex, numSimulation, scenarioConstants, timePercentageUsedForMean)
         simulation.simulate()
-        absoluteVelocities = simulation.getAbsoluteVelocities()
+        absoluteVelocities = simulation.absoluteVelocities
         absoluteVelocity = simulation.getAbsoluteVelocityTotal()
 
         if not (os.path.exists(scenarioDataDir) and os.path.isdir(scenarioDataDir)):
@@ -58,17 +57,16 @@ class SimulationManager:
             json.dump(absoluteVelocity, absoluteVelocityFile)
 
         if saveTrajectoryData or absoluteVelocity <= 0:
-            statesData = simulation.getStates()
+            statesData = simulation.states
             print(absoluteVelocity, os.path.join(scenarioDataDir, 'statesData.npy'))
             with open(os.path.join(scenarioDataDir, 'statesData.npy'), 'wb') as statesFile:
                 np.save(statesFile, statesData)
 
 
 class SimulationGroup:
-    def __init__(self, simulationDataDir, constantsFunc, initialParameterFunc, numSimulation, repeatNum, timePercentageUsedForMean, saveTrajectoryData = False):
+    def __init__(self, simulationDataDir, constantsFunc, numSimulation, repeatNum, timePercentageUsedForMean, saveTrajectoryData = False):
         self.simulationDataDir = simulationDataDir
         self.constantsFunc = constantsFunc
-        self.initialParameterFunc = initialParameterFunc
         self.numSimulation = numSimulation
         self.repeatNum = repeatNum
         self.timePercentageUsedForMean = timePercentageUsedForMean
@@ -90,15 +88,14 @@ class SimulationGroup:
         for simulationIndex in range(numSimulation):
             for subSimulationIndex in range(repeatNum):
                 scenarioDataDir = self.simulationDataDir + '/' + str(simulationIndex) + '_' + str(subSimulationIndex)
-                self.simulationScenarios.append(SimulationScenario(simulationIndex, numSimulation, scenarioDataDir, self.constantsFunc(simulationIndex, numSimulation), self.initialParameterFunc, self.timePercentageUsedForMean, self.saveTrajectoryData))
+                self.simulationScenarios.append(SimulationScenario(simulationIndex, numSimulation, scenarioDataDir, self.constantsFunc(simulationIndex, numSimulation), self.timePercentageUsedForMean, self.saveTrajectoryData))
 
 
 class SimulationScenario:
-    def __init__(self, simulationIndex, numSimulation, scenarioDataDir, scenarioConstants, initialParameterFunc, timePercentageUsedForMean, saveTrajectoryData):
+    def __init__(self, simulationIndex, numSimulation, scenarioDataDir, scenarioConstants, timePercentageUsedForMean, saveTrajectoryData):
         self.simulationIndex = simulationIndex
         self.numSimulation = numSimulation
         self.scenarioDataDir = scenarioDataDir
         self.scenarioConstants = scenarioConstants
-        self.initialParameterFunc = initialParameterFunc
         self.timePercentageUsedForMean = timePercentageUsedForMean
         self.saveTrajectoryData = saveTrajectoryData

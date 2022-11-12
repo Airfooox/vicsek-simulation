@@ -78,25 +78,42 @@ def calculateResult(calculationData):
 
     dirOfData = os.path.join(simulationGroupPath, str(currentSimulationNum))
 
-    with open(os.path.join(dirOfData + '_0', 'constants.txt')) as constantsFile:
-        constants = json.load(constantsFile)
+    if not os.path.exists(simulationGroupPath):
+        print(f'simulationGroup {simulationGroupPath} doesnt exist')
+        return
+
+    constants = None
+    subSimulationPaths = []
+    for i in range(simulationRepeatNum):
+        simulationIdentifier = dirOfData + '_' + str(i)
+
+        if (os.path.exists(simulationIdentifier) and
+                os.path.exists(os.path.join(simulationIdentifier, 'absoluteVelocity.txt')) and
+                os.path.exists(os.path.join(simulationIdentifier, 'constants.txt'))):
+            subSimulationPaths.append(simulationIdentifier)
+            if constants is None:
+                with open(os.path.join(simulationIdentifier, 'constants.txt')) as constantsFile:
+                    constants = json.load(constantsFile)
+
+    if constants is None or len(subSimulationPaths) == 0:
+        print(f'simulation {dirOfData} have no data saved.')
+        return
 
     timeSteps = constants['timeSteps']
     framesUsedForMean = np.ceil(((1 - (timePercentageUsedForMean / 100)) * timeSteps))
     timeEvolution = np.zeros((timeSteps), dtype=np.float64)
 
     selectedSubVelocities = []
-    for i in range(simulationRepeatNum):
-        simulationIdentifier = dirOfData + '_' + str(i)
-        timeEvolutionData = np.load(os.path.join(simulationIdentifier, 'absoluteVelocities.npy'))
+    for subSimulationPath in subSimulationPaths:
+        timeEvolutionData = np.load(os.path.join(subSimulationPath, 'absoluteVelocities.npy'))
         timeEvolution = np.add(timeEvolution, timeEvolutionData)
 
         if reevaluateAbsoluteVelocities:
             reevalutedAbsoluteVelocity = calculateAbsoluteVelocityTotal(timeSteps, framesUsedForMean, timeEvolutionData)
-            with open(os.path.join(simulationIdentifier, 'absoluteVelocity.txt'), 'w') as absoluteVelocityFile:
+            with open(os.path.join(subSimulationPath, 'absoluteVelocity.txt'), 'w') as absoluteVelocityFile:
                 json.dump(reevalutedAbsoluteVelocity, absoluteVelocityFile)
 
-        with open(os.path.join(simulationIdentifier, 'absoluteVelocity.txt')) as resultFile:
+        with open(os.path.join(subSimulationPath, 'absoluteVelocity.txt')) as resultFile:
             absoluteVelocitySub = json.load(resultFile)
 
             if absoluteVelocitySub > 0:
@@ -107,55 +124,17 @@ def calculateResult(calculationData):
             # except json.decoder.JSONDecodeError:
             #     print(dirOfData + '_' + str(i) + '/absoluteVelocity.txt')
 
-        with open(os.path.join(simulationIdentifier, 'timeEvolution.txt'), 'w') as timeEvolutionFile:
+        with open(os.path.join(subSimulationPath, 'timeEvolution.txt'), 'w') as timeEvolutionFile:
             json.dump(timeEvolutionData.tolist(), timeEvolutionFile)
 
-    absoluteVelocity = np.mean(selectedSubVelocities)
-    std = np.std(selectedSubVelocities)
     timeEvolution = timeEvolution / len(selectedSubVelocities)
 
-    # absoluteVelocity = 0
-    # ignoreCount = 0
-    # usedVelocities = []
-    # for i in subSimulationRange:
-    #     timeEvolutionData = np.load(dirOfData + '_' + str(i) + '/absoluteVelocities.npy')
-    #     timeEvolution = np.add(timeEvolution, timeEvolutionData)
-    #
-    #     if reevaluateAbsoluteVelocities:
-    #         reevalutedAbsoluteVelocity = calculateAbsoluteVelocityTotal(timeSteps, timeEvolutionData)
-    #         with open(dirOfData + '_' + str(i) + '/absoluteVelocity.txt', 'w') as absoluteVelocityFile:
-    #             json.dump(reevalutedAbsoluteVelocity, absoluteVelocityFile)
-    #
-    #     with open(dirOfData + '_' + str(i) + '/absoluteVelocity.txt') as resultFile:
-    #         absoluteVelocitySub = json.load(resultFile)
-    #
-    #         if (absoluteVelocitySub <= 0):
-    #             print(absoluteVelocitySub, dirOfData + '_' + str(i) + '/absoluteVelocity.txt')
-    #             ignoreCount += 1
-    #         else:
-    #             absoluteVelocity += absoluteVelocitySub
-    #             usedVelocities.append(absoluteVelocitySub)
-    #
-    #         # try:
-    #         #
-    #         # except json.decoder.JSONDecodeError:
-    #         #     print(dirOfData + '_' + str(i) + '/absoluteVelocity.txt')
-    #
-    #
-    #
-    #     with open(dirOfData + '_' + str(i) + '/timeEvolution.txt', 'w') as timeEvolutionFile:
-    #         json.dump(timeEvolutionData.tolist(), timeEvolutionFile)
-
-    # absoluteVelocity = absoluteVelocity / (len(subSimulationRange) - ignoreCount)
-    # timeEvolution = timeEvolution / (len(subSimulationRange) - ignoreCount)
-    # std = np.std(usedVelocities)
-
-    simulationGroupDirectory[currentSimulationNum] = {'va': absoluteVelocity, 'std': std, 'constants': constants,
+    simulationGroupDirectory[currentSimulationNum] = {'va': np.mean(selectedSubVelocities), 'std': np.std(selectedSubVelocities), 'constants': constants,
                                                       'timeEvolution': timeEvolution.tolist()}
 
 
 if __name__ == "__main__":
-    dataDir = '/local/kzisiadis/vicsek-simulation_sameEta_mixed'
+    dataDir = '/local/kzisiadis/vicsek-simulation_sameRho_phaseShift'
     # dataDir = 'D:\\simulationdata'
     reevaluateAbsoluteVelocities = False
 
@@ -245,6 +224,7 @@ if __name__ == "__main__":
         pool.close()
         pool.join()
 
+        # after every scenario has been evaluated, retrieve the results and put them in an easy to reach txt
         for simulationGroup in simulationGroups.items():
             simulationGroupData = simulationGroup[1]
             simulationGroupName = simulationGroupData['name']
