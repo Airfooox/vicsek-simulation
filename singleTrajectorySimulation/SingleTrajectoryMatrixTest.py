@@ -33,7 +33,7 @@ if __name__ == "__main__":
         "interactionRadius": 1,
         "randomAngleAmplitude": 0,
 
-        "initialVelocity": 0.0025,
+        "velocity": 0.0025,
         "swimmerSize": 0.04,
 
         "saveVideo": False,

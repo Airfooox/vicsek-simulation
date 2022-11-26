@@ -35,20 +35,19 @@ class SimulationManager:
         simulationIndex = simulationScenario.simulationIndex
         numSimulation = simulationScenario.numSimulation
         scenarioDataDir = simulationScenario.scenarioDataDir
-        scenarioConstants = simulationScenario.scenarioConstants
-        timePercentageUsedForMean = simulationScenario.timePercentageUsedForMean
+        scenarioConfig = simulationScenario.scenarioConfig
         saveTrajectoryData = simulationScenario.saveTrajectoryData
 
-        simulation = Simulation(simulationIndex, numSimulation, scenarioConstants, timePercentageUsedForMean)
+        simulation = Simulation(simulationIndex, numSimulation, scenarioConfig)
         simulation.simulate()
         absoluteVelocities = simulation.absoluteVelocities
-        absoluteVelocity = simulation.getAbsoluteVelocityTotal()
+        absoluteVelocity = simulation.calculateAbsoluteVelocity()
 
         if not (os.path.exists(scenarioDataDir) and os.path.isdir(scenarioDataDir)):
             os.mkdir(scenarioDataDir)
 
-        with open(os.path.join(scenarioDataDir, 'constants.txt'), 'w') as constantsFile:
-            json.dump(scenarioConstants, constantsFile)
+        with open(os.path.join(scenarioDataDir, 'config.txt'), 'w') as configFile:
+            json.dump(scenarioConfig, configFile)
 
         with open(os.path.join(scenarioDataDir, 'absoluteVelocities.npy'), 'wb') as absoluteVelocitiesFile:
             np.save(absoluteVelocitiesFile, absoluteVelocities)
@@ -64,9 +63,9 @@ class SimulationManager:
 
 
 class SimulationGroup:
-    def __init__(self, simulationDataDir, constantsFunc, numSimulation, repeatNum, timePercentageUsedForMean, saveTrajectoryData = False):
+    def __init__(self, simulationDataDir, configFunction, numSimulation, repeatNum, timePercentageUsedForMean, saveTrajectoryData = False):
         self.simulationDataDir = simulationDataDir
-        self.constantsFunc = constantsFunc
+        self.constantsFunc = configFunction
         self.numSimulation = numSimulation
         self.repeatNum = repeatNum
         self.timePercentageUsedForMean = timePercentageUsedForMean
@@ -92,10 +91,10 @@ class SimulationGroup:
 
 
 class SimulationScenario:
-    def __init__(self, simulationIndex, numSimulation, scenarioDataDir, scenarioConstants, timePercentageUsedForMean, saveTrajectoryData):
+    def __init__(self, simulationIndex, numSimulation, scenarioDataDir, scenarioConfig, timePercentageUsedForMean, saveTrajectoryData):
         self.simulationIndex = simulationIndex
         self.numSimulation = numSimulation
         self.scenarioDataDir = scenarioDataDir
-        self.scenarioConstants = scenarioConstants
+        self.scenarioConstants = scenarioConfig
         self.timePercentageUsedForMean = timePercentageUsedForMean
         self.saveTrajectoryData = saveTrajectoryData

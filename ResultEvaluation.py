@@ -89,10 +89,10 @@ def calculateResult(calculationData):
 
         if (os.path.exists(simulationIdentifier) and
                 os.path.exists(os.path.join(simulationIdentifier, 'absoluteVelocity.txt')) and
-                os.path.exists(os.path.join(simulationIdentifier, 'constants.txt'))):
+                os.path.exists(os.path.join(simulationIdentifier, 'config.txt'))):
             subSimulationPaths.append(simulationIdentifier)
             if constants is None:
-                with open(os.path.join(simulationIdentifier, 'constants.txt')) as constantsFile:
+                with open(os.path.join(simulationIdentifier, 'config.txt')) as constantsFile:
                     constants = json.load(constantsFile)
 
     if constants is None or len(subSimulationPaths) == 0:

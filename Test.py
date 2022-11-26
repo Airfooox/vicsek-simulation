@@ -9,7 +9,7 @@ import os
 if __name__ == "__main__":
     dir = 'D:/simulationdata/sameRhoGroup400PhaseShift90_23_84'
 
-    with open(dir + '/constants.txt') as constantFile:
+    with open(dir + '/config.txt') as constantFile:
         constants = json.load(constantFile)
     timeEvolutionData = np.load(dir + '/absoluteVelocities.npy')
     if os.path.exists(dir + '/statesData.npy'):

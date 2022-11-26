@@ -1,12 +1,9 @@
-from __future__ import annotations
-
-import numba.core.types
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from scipy.optimize import curve_fit
-from numba import uint16, float32, types, njit
+from numba import uint16, uint32, float32, types, njit
 from numba.experimental import jitclass
 from util import printProgressBar
 
@@ -32,11 +29,11 @@ class Grid:
 
         self.cells = [np.zeros(0, dtype=np.uint16) for _ in range(self.rows * self.columns)]
 
-    def addSwimmer(self, cellIndex: int, swimmerId: int) -> None:
+    def addSwimmer(self, cellIndex: int, swimmerId: int):
         self.cells[cellIndex] = np.append(self.cells[cellIndex], np.uint16(swimmerId))
         # self.cells[cellIndex].append(np.uint16(swimmerId))
 
-    def removeSwimmer(self, cellIndex: int, swimmerId: int) -> None:
+    def removeSwimmer(self, cellIndex: int, swimmerId: int):
         cell = self.cells[cellIndex]
         self.cells[cellIndex] = cell[cell != np.uint16(swimmerId)]
 
@@ -72,19 +69,19 @@ class Grid:
 
 
 class Simulation:
-    def __init__(self, simulationIndex, numSimulation, constants, timePercentageUsedForMean):
-        self.simulationConstants = constants
+    def __init__(self, simulationIndex, numSimulation, simulationConfig, timePercentageUsedForMean):
+        self.simulationConfig = simulationConfig
         self.framesUsedForMean = np.ceil(
-            ((1 - (timePercentageUsedForMean / 100)) * self.simulationConstants["timeSteps"]))
+            ((1 - (timePercentageUsedForMean / 100)) * self.simulationConfig["timeSteps"]))
 
-        self.grid = Grid(self.simulationConstants['environmentSideLength'], self.simulationConstants['environmentSideLength'], self.simulationConstants['interactionRadius'])
+        self.grid = Grid(self.simulationConfig['environmentSideLength'], self.simulationConfig['environmentSideLength'], self.simulationConfig['interactionRadius'])
 
         # initialize the swimmers with position, angle of velocity, amplitude, period and phase shift
         initialSwimmerState = []
-        for groupIdentifier, groupConfig in self.simulationConstants['groups'].items():
+        for groupIdentifier, groupConfig in self.simulationConfig['groups'].items():
             for swimmerIndex in range(groupConfig["numSwimmers"]):
-                xPos = np.random.rand() * self.simulationConstants["environmentSideLength"]
-                yPos = np.random.rand() * self.simulationConstants["environmentSideLength"]
+                xPos = np.random.rand() * self.simulationConfig["environmentSideLength"]
+                yPos = np.random.rand() * self.simulationConfig["environmentSideLength"]
                 vPhi = np.random.rand() * 2 * np.pi  # angle in rad
                 oscillationAmplitude = groupConfig["oscillationAmplitude"]
                 oscillationPeriod = groupConfig["oscillationPeriod"]
@@ -96,61 +93,63 @@ class Simulation:
         self.numSwimmers = len(initialSwimmerState)
 
         # initialize states array and add initial values for first frame
-        self.states = np.zeros((self.simulationConstants["timeSteps"], self.numSwimmers, 6), dtype=np.float64)
-        self.absoluteVelocities = np.zeros((self.simulationConstants["timeSteps"]), dtype=np.float64)
-
+        self.states = np.zeros((self.simulationConfig["timeSteps"], self.numSwimmers, 6), dtype=np.float64)
         self.states[0] = np.array(initialSwimmerState, dtype=np.float64)
 
+        self.absoluteVelocities = np.zeros((self.simulationConfig["timeSteps"]), dtype=np.float64)
+        self.absoluteGroupVelocities = np.zeros((self.simulationConfig["timeSteps"], len(self.simulationConfig['groups'].values())), dtype=np.float64)
+        self.absoluteGroupVelocityConfig = np.array(list(map(lambda x: x['numSwimmers'], self.simulationConfig['groups'].values())), dtype=np.int16)
+
+        self.totalAbsoluteVelocity = 0
+        self.totalAbsoluteGroupVelocities = np.zeros(len(self.absoluteGroupVelocityConfig), dtype=np.float64)
+
+
     def simulate(self):
-        for t in range(1, self.simulationConstants["timeSteps"]):
-            self.grid, self.states[t], self.absoluteVelocities[t] = self.simulationStep(t)
-
-            # printProgressBar(t, self.simulationConstants["timeSteps"] - 1, prefix='Simulation Progress:', suffix='Simulation Complete', length=50)
-
-        return self.states
-
-    # @jit
-    def simulationStep(self, t):
-        previousState = []
-        try:
+        for t in np.arange(1, self.simulationConfig["timeSteps"]):
             previousState = self.states[t - 1]
-        except IndexError:
-            previousState = self.simulationStep(t - 1)
 
-        environmentSideLength = self.simulationConstants['environmentSideLength']
-        randomAngleAmplitude = self.simulationConstants['randomAngleAmplitude']
-        interactionRadius = self.simulationConstants['interactionRadius']
-        initialVelocity = self.simulationConstants['initialVelocity']
+            args = [self.numSwimmers, self.grid, previousState, self.absoluteGroupVelocityConfig,
+                    self.simulationConfig['environmentSideLength'], self.simulationConfig['randomAngleAmplitude'],
+                    self.simulationConfig['interactionRadius'], self.simulationConfig['velocity']]
+            self.grid, self.states[t], self.absoluteVelocities[t], self.absoluteGroupVelocities[t] = self.calculateNewState(t, *args)
 
-        return self.calculateNewState(t, self.grid, previousState, self.numSwimmers, environmentSideLength, randomAngleAmplitude, interactionRadius, initialVelocity)
+        self.totalAbsoluteVelocity = Simulation.calculateAbsoluteVelocityTotal(
+            self.simulationConfig["timeSteps"], self.framesUsedForMean,
+            self.absoluteVelocities)
 
-    def getAbsoluteVelocityTotal(self):
-        return Simulation.calculateAbsoluteVelocityTotal(self.simulationConstants["timeSteps"], self.framesUsedForMean,
-                                                         self.absoluteVelocities)
+        for groupIndex in np.arange(len(self.absoluteGroupVelocityConfig)):
+            self.totalAbsoluteGroupVelocities[groupIndex] = Simulation.calculateAbsoluteVelocityTotal(
+                self.simulationConfig["timeSteps"], self.framesUsedForMean,
+                self.absoluteGroupVelocities[:, groupIndex])
+
+        # printProgressBar(t, self.simulationConfig["timeSteps"] - 1, prefix='Simulation Progress:', suffix='Simulation Complete', length=50)
 
     @staticmethod
     @njit
-    def calculateNewState(t, grid, previousState, numSwimmers, environmentSideLength, randomAngleAmplitude, interactionRadius, initialVelocity):
-        sumVelocity = np.array([0, 0], dtype=np.float64)
+    def calculateNewState(t, numSwimmers, grid, previousState, absoluteGroupVelocityConfig, environmentSideLength, randomAngleAmplitude, interactionRadius, velocity):
+        totalSumVelocity = np.array([0, 0], dtype=np.float64)
+
+        absoluteGroupVelocityIndex = 0
+        absoluteVelocityGroupCount = absoluteGroupVelocityConfig[absoluteGroupVelocityIndex]
+        groupSumVelocities = np.zeros((len(absoluteGroupVelocityConfig), 2), dtype=np.float64)
+
         newState = previousState.copy()
-        for swimmerIndex in range(numSwimmers):
-        # for swimmerIndex in range(1):
+        for swimmerIndex in np.arange(numSwimmers):
             swimmerState = newState[swimmerIndex]
             interactionSwimmerIndices = np.zeros(0, dtype=np.uint16)
 
             # potential interaction swimmer indices
             gridInteractionSwimmerIndices = grid.getNeighbourCellsSwimmerIndices(swimmerState[0], swimmerState[1])
-            # print('SWIMMER', swimmerState[0], swimmerState[1], grid.getCellIndex(swimmerState[0], swimmerState[1]), gridInteractionSwimmerIndices)
             for interactionSwimmerIndex in gridInteractionSwimmerIndices:
                 # no self interaction, because we already take the current state as the base values
                 if interactionSwimmerIndex == swimmerIndex:
                     continue
 
                 interactionSwimmerState = previousState[interactionSwimmerIndex]
-                distanceBetween = (swimmerState[0] - interactionSwimmerState[0]) ** 2 + (swimmerState[1] - interactionSwimmerState[1]) ** 2
+                distanceBetween = (swimmerState[0] - interactionSwimmerState[0]) ** 2 + (
+                            swimmerState[1] - interactionSwimmerState[1]) ** 2
                 if distanceBetween <= interactionRadius ** 2:
                     interactionSwimmerIndices = np.append(interactionSwimmerIndices, interactionSwimmerIndex)
-            # print(interactionSwimmerIndices)
 
             # interaction over boundary stuff
             # check if particles radius is over boundary
@@ -209,20 +208,23 @@ class Simulation:
             shadowSwimmerPositions = np.reshape(shadowSwimmerPositions, (-1, 2))
             for shadowSwimmerPosition in shadowSwimmerPositions:
                 # get the possible interactions from the shadow swimmers
-                gridShadowInteractionSwimmerIndices = grid.getNeighbourCellsSwimmerIndices(shadowSwimmerPosition[0], shadowSwimmerPosition[1])
-                # print('SHADOW SWIMMER', shadowSwimmerPosition[0], shadowSwimmerPosition[1], gridShadowInteractionSwimmerIndices)
+                gridShadowInteractionSwimmerIndices = grid.getNeighbourCellsSwimmerIndices(shadowSwimmerPosition[0],
+                                                                                           shadowSwimmerPosition[1])
                 for shadowInteractionSwimmerIndex in gridShadowInteractionSwimmerIndices:
+                    # not interacting with themselves
                     if shadowInteractionSwimmerIndex == swimmerIndex:
                         continue
 
+                    # dont duplicate
                     if shadowInteractionSwimmerIndex in interactionSwimmerIndices:
                         continue
 
                     shadowInteractionSwimmerState = previousState[shadowInteractionSwimmerIndex]
                     distanceBetween = (shadowSwimmerPosition[0] - shadowInteractionSwimmerState[0]) ** 2 + (
-                                shadowSwimmerPosition[1] - shadowInteractionSwimmerState[1]) ** 2
+                            shadowSwimmerPosition[1] - shadowInteractionSwimmerState[1]) ** 2
                     if distanceBetween ** 2 <= interactionRadius:
-                        interactionSwimmerIndices = np.append(interactionSwimmerIndices, shadowInteractionSwimmerIndex)
+                        interactionSwimmerIndices = np.append(interactionSwimmerIndices,
+                                                              shadowInteractionSwimmerIndex)
             # print(interactionSwimmerIndices)
 
             # i and j are in range
@@ -241,10 +243,19 @@ class Simulation:
 
             xVelCos = np.cos(swimmerState[2])
             yVelSin = np.sin(swimmerState[2])
-            sumVelocity += np.array([xVelCos, yVelSin], dtype=np.float64)
+            velVec = np.array([xVelCos, yVelSin], dtype=np.float64)
+            totalSumVelocity += velVec
 
-            swimmerState[0] += initialVelocity * xVelCos
-            swimmerState[1] += initialVelocity * yVelSin
+            # sum velocity vectors for every group
+            groupSumVelocities[absoluteGroupVelocityIndex] += velVec
+            absoluteVelocityGroupCount -= 1
+            if absoluteVelocityGroupCount <= 0:
+                absoluteGroupVelocityIndex = min(absoluteGroupVelocityIndex + 1,
+                                                 len(absoluteGroupVelocityConfig) - 1)
+                absoluteVelocityGroupCount = absoluteGroupVelocityConfig[absoluteGroupVelocityIndex]
+
+            swimmerState[0] += velocity * xVelCos
+            swimmerState[1] += velocity * yVelSin
 
             # check for boundary hits
             leftBoundaryHit = (swimmerState[0] <= 0)
@@ -261,13 +272,19 @@ class Simulation:
             if downBoundaryHit:
                 swimmerState[1] += environmentSideLength
 
-            previousSwimmerGridIndex = grid.getCellIndex(previousState[swimmerIndex][0], previousState[swimmerIndex][1])
+            previousSwimmerGridIndex = grid.getCellIndex(previousState[swimmerIndex][0],
+                                                         previousState[swimmerIndex][1])
             newSwimmerGridIndex = grid.getCellIndex(swimmerState[0], swimmerState[1])
             if previousSwimmerGridIndex != newSwimmerGridIndex:
                 grid.removeSwimmer(previousSwimmerGridIndex, swimmerIndex)
                 grid.addSwimmer(newSwimmerGridIndex, swimmerIndex)
 
-        return grid, newState, np.linalg.norm(sumVelocity) / numSwimmers
+        absoluteVelocity = np.linalg.norm(totalSumVelocity) / numSwimmers
+        absoluteGroupVelocity = np.zeros(len(absoluteGroupVelocityConfig), dtype=np.float64)
+        for index, numGroupSwimmers in enumerate(absoluteGroupVelocityConfig):
+            absoluteGroupVelocity[index] = np.linalg.norm(groupSumVelocities[index]) / numGroupSwimmers
+
+        return grid, newState, absoluteVelocity, absoluteGroupVelocity
 
     @staticmethod
     @njit
@@ -327,16 +344,16 @@ class Simulation:
         # initialize animation
         self.figure = plt.figure()
         self.figure.subplots_adjust(left=0, right=1, bottom=0, top=1)
-        limits = self.simulationConstants["environmentSideLength"] + 0.2
+        limits = self.simulationConfig["environmentSideLength"] + 0.2
         self.axis = self.figure.add_subplot(111, aspect='equal', autoscale_on=False,
                                             xlim=(-0.2, limits), ylim=(-0.2, limits))
 
         self.rect = plt.Rectangle((0, 0),
-                                  self.simulationConstants["environmentSideLength"],
-                                  self.simulationConstants["environmentSideLength"],
+                                  self.simulationConfig["environmentSideLength"],
+                                  self.simulationConfig["environmentSideLength"],
                                   ec='none', lw=2, fc='none')
         self.axis.add_patch(self.rect)
-        plt.grid()
+        # plt.grid()
 
         # initialize plot with empty position data, cyclic colormap and swimmer phase as data for the color map
         initialState = self.states[0]
@@ -370,7 +387,7 @@ class Simulation:
         def animate(t):
             data = self.states[t]
 
-            markerSize = int(self.figure.dpi * 2 * self.simulationConstants["swimmerSize"] * self.figure.get_figwidth()
+            markerSize = int(self.figure.dpi * 2 * self.simulationConfig["swimmerSize"] * self.figure.get_figwidth()
                              / np.diff(self.axis.get_xbound())[0])
             areaSize = np.ones(self.numSwimmers) * 0.5 * markerSize ** 2
 
@@ -397,13 +414,13 @@ class Simulation:
             iterableArtists = [self.swimmerPlot, self.rect] + self.trajectoryLines
             return iterableArtists
 
-        ani = animation.FuncAnimation(self.figure, func=animate, frames=self.simulationConstants["timeSteps"],
+        ani = animation.FuncAnimation(self.figure, func=animate, frames=self.simulationConfig["timeSteps"],
                                       interval=1000 / 60, blit=True, init_func=plotInit)
 
-        if self.simulationConstants['saveVideo']:
+        if self.simulationConfig['saveVideo']:
             mpl.rcParams['animation.ffmpeg_path'] = r'C:\\Users\\konst\\Desktop\\ffmpeg\\bin\\ffmpeg.exe'
             f = r"c:\\Users\\konst\\Desktop\\animation.mp4"
-            writervideo = animation.FFMpegWriter(fps=60, bitrate=3000, codec='h264_nvenc')
+            writervideo = animation.FFMpegWriter(fps=60, bitrate=4500, codec='h264_nvenc')
             ani.save(
                 f, writer=writervideo,
                 progress_callback=lambda i, n: printProgressBar(i, n, prefix='Animation Progress:',

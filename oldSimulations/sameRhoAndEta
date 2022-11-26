@@ -16,7 +16,7 @@
             "randomAngleAmplitude": 2,
 
             "initialSwimmerParameterFunc": initialSwimmerParameter,
-            "initialVelocity": 0.0025,
+            "velocity": 0.0025,
             "swimmerSize": 0.04,
 
             "saveVideo": False,
@@ -43,7 +43,7 @@
             "randomAngleAmplitude": 15 * (i / numSimulation),
 
             "initialSwimmerParameterFunc": initialSwimmerParameter,
-            "initialVelocity": 0.0025,
+            "velocity": 0.0025,
             "swimmerSize": 0.04,
 
             "saveVideo": False,
@@ -73,7 +73,7 @@
             "randomAngleAmplitude": 15 * (i / numSimulation),
 
             "initialSwimmerParameterFunc": initialSwimmerParameter,
-            "initialVelocity": 0.0025,
+            "velocity": 0.0025,
             "swimmerSize": 0.04,
 
             "saveVideo": False,
@@ -104,7 +104,7 @@
             "randomAngleAmplitude": 15 * (i / numSimulation),
 
             "initialSwimmerParameterFunc": initialSwimmerParameter,
-            "initialVelocity": 0.0025,
+            "velocity": 0.0025,
             "swimmerSize": 0.04,
 
             "saveVideo": False,
