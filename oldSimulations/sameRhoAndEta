@@ -3,7 +3,7 @@
             return {
                 "oscillationAmplitude": np.pi / 40,
                 "oscillationPeriod": 60,  # how many timesteps for one full oscillation
-                "oscillationPhaseshift": 0
+                "oscillationPhaseShift": 0
             }
 
         return {
@@ -30,7 +30,7 @@
             return {
                 "oscillationAmplitude": np.pi / 40,
                 "oscillationPeriod": 60,  # how many timesteps for one full oscillation
-                "oscillationPhaseshift": 0
+                "oscillationPhaseShift": 0
             }
 
         return {
@@ -60,7 +60,7 @@
             return {
                 "oscillationAmplitude": np.pi / 40,
                 "oscillationPeriod": 60,  # how many timesteps for one full oscillation
-                "oscillationPhaseshift": 0
+                "oscillationPhaseShift": 0
             }
 
         return {
@@ -91,7 +91,7 @@
             return {
                 "oscillationAmplitude": np.pi / 40,
                 "oscillationPeriod": 60,  # how many timesteps for one full oscillation
-                "oscillationPhaseshift": 0
+                "oscillationPhaseShift": 0
             }
 
         return {

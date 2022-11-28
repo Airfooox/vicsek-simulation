@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 def unitVector(vector):
     """ Returns the unit vector of the vector.  """
@@ -31,3 +32,43 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
     # Print New Line on Complete
     if iteration == total:
         print()
+
+
+# https://stackoverflow.com/a/53586826
+def multipleFormatter(den=2, number=np.pi, latex='\pi'):
+    def gcd(a, b):
+        while b:
+            a, b = b, a % b
+        return a
+    def _multipleFormatter(x, pos):
+        denominator = den
+        num = np.int(np.rint(denominator * x / number))
+        com = gcd(num, denominator)
+        (num, denominator) = (int(num/com), int(denominator/com))
+        if denominator == 1:
+            if num == 0:
+                return r'$0$'
+            if num == 1:
+                return r'$%s$' % latex
+            elif num == -1:
+                return r'$-%s$' % latex
+            else:
+                return r'$%s%s$' % (num, latex)
+        else:
+            if num == 1:
+                return r'$\frac{%s}{%s}$' % (latex, denominator)
+            elif num == -1:
+                return r'$\frac{-%s}{%s}$' % (latex, denominator)
+            else:
+                return r'$\frac{%s%s}{%s}$' % (num, latex, denominator)
+    return _multipleFormatter
+
+class Multiple:
+    def __init__(self, denominator=2, number=np.pi, latex='\pi'):
+        self.denominator = denominator
+        self.number = number
+        self.latex = latex
+    def locator(self):
+        return plt.MultipleLocator(self.number / self.denominator)
+    def formatter(self):
+        return plt.FuncFormatter(multipleFormatter(self.denominator, self.number, self.latex))
