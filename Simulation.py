@@ -1,3 +1,6 @@
+import random
+
+import uuid
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -5,6 +8,7 @@ import matplotlib.animation as animation
 from scipy.optimize import curve_fit
 from numba import uint16, uint32, float32, types, njit
 from numba.experimental import jitclass
+mpl.use("TkAgg")
 
 import util
 from util import printProgressBar
@@ -69,6 +73,9 @@ class Grid:
     def getCellIndex(self, x: float, y: float):
         return int(x // self.cellSize) + int(y // self.cellSize) * self.rows
 
+    def clear(self):
+        self.cells = [np.zeros(0, dtype=np.uint16) for _ in range(self.rows * self.columns)]
+
 
 class Simulation:
     def __init__(self, simulationIndex, numSimulation, simulationConfig, timePercentageUsedForMean):
@@ -91,12 +98,11 @@ class Simulation:
                 initialSwimmerState.append(
                     [xPos, yPos, vPhi, oscillationAmplitude, oscillationPeriod, oscillationPhaseShift])
 
-                self.grid.addSwimmer(self.grid.getCellIndex(xPos, yPos), swimmerIndex)
         self.numSwimmers = len(initialSwimmerState)
-
         # initialize states array and add initial values for first frame
         self.states = np.zeros((self.simulationConfig["timeSteps"], self.numSwimmers, 6), dtype=np.float64)
         self.states[0] = np.array(initialSwimmerState, dtype=np.float64)
+        self.initializeGrid()
 
         self.absoluteVelocities = np.zeros((self.simulationConfig["timeSteps"]), dtype=np.float64)
         self.absoluteGroupVelocities = np.zeros((self.simulationConfig["timeSteps"], len(self.simulationConfig['groups'].values())), dtype=np.float64)
@@ -105,6 +111,11 @@ class Simulation:
         self.totalAbsoluteVelocity = 0
         self.totalAbsoluteGroupVelocities = np.zeros(len(self.absoluteGroupVelocityConfig), dtype=np.float64)
 
+    def initializeGrid(self):
+        self.grid.clear()
+        for swimmerIndex, initialSwimmerData in enumerate(self.states[0]):
+            xPos, yPos = initialSwimmerData[0], initialSwimmerData[1]
+            self.grid.addSwimmer(self.grid.getCellIndex(xPos, yPos), swimmerIndex)
 
     def simulate(self):
         for t in np.arange(1, self.simulationConfig["timeSteps"]):
@@ -152,6 +163,7 @@ class Simulation:
                             swimmerState[1] - interactionSwimmerState[1]) ** 2
                 if distanceBetween <= interactionRadius ** 2:
                     interactionSwimmerIndices = np.append(interactionSwimmerIndices, interactionSwimmerIndex)
+                    # print("INTERACTION:", t, swimmerIndex, interactionSwimmerIndex)
 
             # interaction over boundary stuff
             # check if particles radius is over boundary
@@ -218,8 +230,10 @@ class Simulation:
                         continue
 
                     # dont duplicate
+                    # print("SHADOW", t, swimmerIndex, shadowInteractionSwimmerIndex, shadowInteractionSwimmerIndex in interactionSwimmerIndices, interactionSwimmerIndices)
                     if shadowInteractionSwimmerIndex in interactionSwimmerIndices:
                         continue
+
 
                     shadowInteractionSwimmerState = previousState[shadowInteractionSwimmerIndex]
                     distanceBetween = (shadowSwimmerPosition[0] - shadowInteractionSwimmerState[0]) ** 2 + (
@@ -227,6 +241,7 @@ class Simulation:
                     if distanceBetween ** 2 <= interactionRadius:
                         interactionSwimmerIndices = np.append(interactionSwimmerIndices,
                                                               shadowInteractionSwimmerIndex)
+                        # print("SHADOW INTERACTION:", t, swimmerIndex, shadowInteractionSwimmerIndex, distanceBetween)
             # print(interactionSwimmerIndices)
 
             # i and j are in range
@@ -241,6 +256,7 @@ class Simulation:
             randomAngle = ((np.random.rand() - 0.5) * randomAngleAmplitude)
             cosinesOscillation = swimmerState[3] * np.cos(
                 (2 * np.pi / swimmerState[4]) * t + swimmerState[5])
+            # print(averageAngle, cosinesOscillation, averageAngle + randomAngle + cosinesOscillation)
             swimmerState[2] = averageAngle + randomAngle + cosinesOscillation
 
             xVelCos = np.cos(swimmerState[2])
@@ -337,7 +353,7 @@ class Simulation:
             # print(timeSteps, np.array(absoluteVelocities))
         return absoluteVelocity
 
-    def animate(self, showGroup = False, saveVideo = False, fixedTimeStep = None):
+    def animate(self, showGroup = False, saveVideo = False, videoPath = None, fixedTimeStep = None, saveFixedTimeSetPictureDir = None):
         if fixedTimeStep and fixedTimeStep >= self.simulationConfig['timeSteps']:
             print('Given fixed timestep is not in the bounds of the simulation')
             return
@@ -350,9 +366,10 @@ class Simulation:
         self.figure.subplots_adjust(left=0, right=0.95, bottom=0.05, top=0.95)
 
         padding = 0
+        textPadding = (0.05 + 0.06 * len(self.absoluteGroupVelocityConfig)) * self.simulationConfig['environmentSideLength']
         self.axis = self.figure.add_subplot(111, aspect='equal', autoscale_on=False,
                                             xlim=(-padding, self.simulationConfig['environmentSideLength'] + padding),
-                                            ylim=(-padding, self.simulationConfig['environmentSideLength'] + padding + 0.1))
+                                            ylim=(-padding, self.simulationConfig['environmentSideLength'] + padding + textPadding))
 
         self.rect = plt.Rectangle((0, 0),
                                   self.simulationConfig["environmentSideLength"],
@@ -373,20 +390,31 @@ class Simulation:
         initialY = initialState[:, 1]
         initialPhi = initialState[:, 2]
 
+        norm = None
+        colormap = None
         if not showGroup:
             colorData = initialPhi % (2 * np.pi)
             clim = [0, 2 * np.pi]
+            norm = mpl.colors.Normalize(vmin=clim[0], vmax=clim[1])
+            colormap = plt.get_cmap("twilight")
         else:
             colorData = np.zeros(0, dtype=np.uint16)
-            clim = [0, len(self.absoluteGroupVelocityConfig) + 1]
+            # clim = [0, len(self.absoluteGroupVelocityConfig) + 1]
+            clim = None
+            boundaries = []
             for index, groupNumSwimmers in enumerate(self.absoluteGroupVelocityConfig):
+                boundaries.append(index + 1)
                 colorData = np.append(colorData, np.zeros(groupNumSwimmers, dtype=np.uint16) + index + 1)
+            norm = mpl.colors.Normalize(vmin=boundaries[0], vmax=boundaries[-1])
+            colormap = plt.get_cmap("winter")
+
+
 
         self.swimmerPlot = self.axis.quiver(initialX, initialY, np.cos(initialPhi), np.sin(initialPhi),
-                                            colorData, cmap=plt.get_cmap("twilight"), clim=clim,
-                                            pivot="middle", scale=250, units="width", width=0.0001, headwidth=30,
+                                            colorData, cmap=colormap, norm=norm, clim=clim,
+                                            pivot="middle", scale=250, units="width", width=0.0001, headwidth=20,
                                             headlength=50, headaxislength=45, minshaft=0.99, minlength=0)
-        self.swimmerPlot.set_sizes(np.ones(self.numSwimmers) * 100)
+        self.swimmerPlot.set_sizes(np.ones(self.numSwimmers) * 50)
 
         self.trajectoryLines = []
         if self.numSwimmers <= 10:
@@ -394,34 +422,52 @@ class Simulation:
                 trajectoryLine, = self.axis.plot([], [], "go", ms=0.75)
                 self.trajectoryLines.append(trajectoryLine)
 
-        colorbar = self.figure.colorbar(self.swimmerPlot, ax=self.axis)
-        colorbar.set_label(r'orientation')
+        if not showGroup:
+            colorbar = self.figure.colorbar(self.swimmerPlot, ax=self.axis)
+            colorbar.set_label(r'orientation')
 
-        majorTicks = util.Multiple(2)
-        colorbar.ax.yaxis.set_major_locator(majorTicks.locator())
-        colorbar.ax.yaxis.set_major_formatter(majorTicks.formatter())
+            majorTicks = util.Multiple(2)
+            colorbar.ax.yaxis.set_major_locator(majorTicks.locator())
+            colorbar.ax.yaxis.set_major_formatter(majorTicks.formatter())
 
         rho = np.round(self.numSwimmers / self.simulationConfig['environmentSideLength']**2, 2)
         generalSimulationConfigString = r'$N_{total}=%s, \varrho=%s, \eta=%s, r=%s$' %\
                                         (self.numSwimmers, rho, self.simulationConfig['randomAngleAmplitude'],
                                          self.simulationConfig['interactionRadius'])
-        self.axis.text(0, 1.06, generalSimulationConfigString)
+        self.axis.text(
+            0,
+            self.simulationConfig["environmentSideLength"] + textPadding
+            - 0.04 * self.simulationConfig["environmentSideLength"],
+            generalSimulationConfigString)
 
-        groupsSimulationConfigString = r''
         for index, groupConfig in self.simulationConfig['groups'].items():
             groupNumSwimmers = groupConfig['numSwimmers']
             amplitude = groupConfig['oscillationAmplitude']
             period = groupConfig['oscillationPeriod']
             phaseShift = groupConfig['oscillationPhaseShift']
-            groupsSimulationConfigString += r'Gruppe $%s: (N=%s, A=%s, T=%s, \Delta \varphi=%s)$' % \
-                                            (index, groupNumSwimmers, amplitude, period, phaseShift)
-        self.axis.text(0, 1.015, groupsSimulationConfigString)
+            amplitudeString = util.multipleFormatter(2 ** 16, np.pi)(amplitude, None)
+            phaseShiftString = util.multipleFormatter(2 ** 16, np.pi)(phaseShift, None)
+            groupsSimulationConfigString = r'Gruppe $%s: (N=%s, A=$%s$, T=%s, \Delta \varphi=$%s$)$' % \
+                                            (index, groupNumSwimmers, amplitudeString, period, phaseShiftString) + '\n'
+
+            color = None
+            if showGroup:
+                color = colormap(norm(int(index)))
+            self.axis.text(
+                0,
+                self.simulationConfig["environmentSideLength"] + textPadding
+                - (0.05 * (int(index) + 2)) * self.simulationConfig["environmentSideLength"],
+                groupsSimulationConfigString, color=colorg)
 
         if fixedTimeStep:
             for trajectoryLine in self.trajectoryLines:
                 trajectoryLine.set_data(self.states[:fixedTimeStep, i, 0], self.states[:fixedTimeStep, i, 1])
 
-            plt.show()
+            if saveFixedTimeSetPictureDir:
+                plt.savefig(saveFixedTimeSetPictureDir)
+                plt.close(self.figure)
+            else:
+                plt.show()
             return
 
         def plotInit():
@@ -444,9 +490,8 @@ class Simulation:
             # [x1, x2, ..., xn] and [y1, y2, ..., yn] -> [[x1, y1], [x2,y2], ..., [xn, yn]]
             self.swimmerPlot.set_offsets(np.c_[x, y])
 
-
             if not showGroup:
-                updatedColorData = initialPhi % (2 * np.pi)
+                updatedColorData = phi % (2 * np.pi)
             else:
                 updatedColorData = np.zeros(0, dtype=np.uint16)
                 for index, groupNumSwimmers in enumerate(self.absoluteGroupVelocityConfig):
@@ -467,13 +512,14 @@ class Simulation:
                                       interval=1000 / 60, blit=True, init_func=plotInit)
 
         if self.simulationConfig['saveVideo'] or saveVideo:
+            if not videoPath:
+                videoPath = rf'C:\Users\konst\OneDrive\Uni\Anstellung\Prof. Menzel (2020-22)\vicsek\simulation\videos\{uuid.uuid4()}'
             mpl.rcParams['animation.ffmpeg_path'] = r'C:\\Users\\konst\\Desktop\\ffmpeg\\bin\\ffmpeg.exe'
-            f = r"c:\\Users\\konst\\Desktop\\animation.mp4"
-            writervideo = animation.FFMpegWriter(fps=60, bitrate=4500, codec='h264_nvenc')
+            writervideo = animation.FFMpegWriter(fps=30, bitrate=5000, codec='h264_nvenc')
             ani.save(
-                f, writer=writervideo,
+                videoPath, writer=writervideo,
                 progress_callback=lambda i, n: printProgressBar(i, n, prefix='Animation Progress:',
                                                                 suffix='Animation Complete', length=50)
             )
-
-        plt.show()
+        else:
+            plt.show()

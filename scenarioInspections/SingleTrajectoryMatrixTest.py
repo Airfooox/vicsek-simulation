@@ -9,6 +9,7 @@ import itertools
 from Simulation import Simulation
 import numpy as np
 import matplotlib.pyplot as plt
+from util import multipleFormatter
 
 if __name__ == "__main__":
     trajectoriesPictureDir = r'E:\simulationdata\singleTrajectories\eta=0'
@@ -17,7 +18,8 @@ if __name__ == "__main__":
         os.mkdir(trajectoriesPictureDir)
 
     simulationConfigs = [
-        {'eta': [0], 'amplitude': [np.pi / 16 * 0], 'period': [40]}
+        # {'eta': [0], 'amplitude': np.array([1, 1/2, 1/4, 1/8, 1/16, 1/32, 1/64]) * np.pi, 'period': np.arange(10, 100+1, 10)}
+        {'eta': [0], 'amplitude': [np.pi / 2], 'period': [100]}
     ]
 
     for configEntry in simulationConfigs:
@@ -27,22 +29,16 @@ if __name__ == "__main__":
             period = config[2]
 
             simulationConfig = {
-                "timeSteps": 250,
+                "timeSteps": 500,
 
-                "environmentSideLength": 1,
+                "environmentSideLength": 0.25,
                 "groups": {
                     "1": {
                         "numSwimmers": 1,
                         "oscillationAmplitude": amplitude,
                         "oscillationPeriod": period,  # how many timesteps for one full oscillation
                         "oscillationPhaseShift": 0
-                    },
-                    # "2": {
-                    #     "numSwimmers": 200,
-                    #     "oscillationAmplitude":  8 * np.pi / 16,
-                    #     "oscillationPeriod": 40,  # how many timesteps for one full oscillation
-                    #     "oscillationPhaseShift": np.pi / 2
-                    # }
+                    }
                 },
                 "interactionRadius": 1,
                 "randomAngleAmplitude": eta,
@@ -56,12 +52,18 @@ if __name__ == "__main__":
             simulation = Simulation(simulationIndex=1, numSimulation=1, simulationConfig=simulationConfig,
                                     timePercentageUsedForMean=25)
             # override start position and orientation
-            simulation.states[0, 0, :3] = np.array([0.1, 0.5, 0], dtype=np.float64)
+            simulation.states[0, 0, :3] = np.array([0.05 * simulationConfig['environmentSideLength'], 0.5 * simulationConfig['environmentSideLength'], 0], dtype=np.float64)
             simulation.simulate()
             statesData = simulation.states
-            simulation.animate(fixedTimeStep=simulationConfig['timeSteps'] - 1)
-            x, y, phi = statesData[:, 0, 0], statesData[:, 0, 1], (180/np.pi) * statesData[:, 0, 2]
-            DeltaR = list(map(lambda xy: (xy[0] - x[0])**2 + (xy[1] - y[0])**2, zip(x, y)))
+            saveFixedTimeSetPictureDir = os.path.join(trajectoriesPictureDir,
+                         f'singleSwimmerTrajectory_timeSteps={simulationConfig["timeSteps"]}_eta={eta}_amplitude={np.round(amplitude / np.pi, 3)}pi_period={period}.png')
+            # print(saveFixedTimeSetPictureDir)
+            # simulation.animate(fixedTimeStep=simulationConfig['timeSteps'] - 1, saveFixedTimeSetPictureDir=saveFixedTimeSetPictureDir)
+            simulation.animate(fixedTimeStep=simulationConfig['timeSteps'] - 1, saveFixedTimeSetPictureDir=None)
+            # simulation.animate(fixedTimeStep=None)
+
+            # x, y, phi = statesData[:, 0, 0], statesData[:, 0, 1], (180/np.pi) * statesData[:, 0, 2]
+            # DeltaR = list(map(lambda xy: (xy[0] - x[0])**2 + (xy[1] - y[0])**2, zip(x, y)))
 
             # plt.figure()
             # trajectoryLine, = plt.plot(statesData[:, 0, 0], statesData[:, 0, 1], "go", ms=0.75)
