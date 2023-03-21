@@ -3,10 +3,12 @@ import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib as mpl
 from matplotlib.widgets import Slider
 from scipy.optimize import curve_fit, differential_evolution
 from numba import njit
 from pprint import pprint
+mpl.use("TkAgg")
 
 
 def non_linear_regression(x, y, func, initialParameters):
@@ -29,7 +31,7 @@ def getMeanAbsolutVelocity(absoluteVelocities, startMean):
     return np.mean(arr)
 
 if __name__ == "__main__":
-    timeEvolutionFile = 'D:/simulationdata/timeEvolutionResult.txt'
+    timeEvolutionFile = r'E:\simulationdata\simulations\sameRhoGroup_phaseShift_N=1000_eta=2_A=0.06pi_T=30_phi=[0.0pi]_g=1\timeEvolutionResult_sameRhoGroup_phaseShift_N=1000_eta=2_A=0.06pi_T=30_phi=[0.0pi]_g=1.txt'
     initSimulationScenarioNum = 1
 
     timePercentageUsedForMean = 25

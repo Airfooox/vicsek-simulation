@@ -10,29 +10,31 @@ import time
 
 if __name__ == "__main__":
     starttime = time.perf_counter()
-    N = 400
-    rho = 5
+    N = 1000
+    rho = 4
+    # N = int(512**2 * rho)
 
     simulationConfig = {
-        "timeSteps": 1500,
+        "timeSteps": 2500,
 
         "environmentSideLength": np.sqrt(N / rho),
         "groups": {
             "1": {
-                "numSwimmers": 200,
-                "oscillationAmplitude": np.pi / 32,
-                "oscillationPeriod": 100,  # how many timesteps for one full oscillation
+                "numSwimmers": N,
+                "oscillationAmplitude": np.pi/16 * 0,
+                "oscillationPeriod": 30,  # how many timesteps for one full oscillation
                 "oscillationPhaseShift": 0
             },
-            "2": {
-                "numSwimmers": 200,
-                "oscillationAmplitude":  np.pi / 32,
-                "oscillationPeriod": 100,  # how many timesteps for one full oscillation
-                "oscillationPhaseShift": np.pi / 2
-            }
+            # "2": {
+            #     "numSwimmers": 200,
+            #     "oscillationAmplitude":  np.pi / 32,
+            #     "oscillationPeriod": 100,  # how many timesteps for one full oscillation
+            #     "oscillationPhaseShift": np.pi / 2
+            # }
         },
         "interactionRadius": 1,
-        "randomAngleAmplitude": 0.1,
+        "randomAngleAmplitude": 0,
+        "interactionStrengthFactor": 0.5,
 
         "velocity": 0.0025,
 
@@ -45,6 +47,8 @@ if __name__ == "__main__":
     simulation.simulate()
     print(simulation.totalAbsoluteVelocity)
     print(simulation.totalAbsoluteGroupVelocities)
+    print(simulation.totalVectorialVelocity)
+    print(simulation.totalVectorialGroupVelocities)
     print('Simulation took {} seconds'.format(time.perf_counter() - starttime))
     # starttime = time.perf_counter()
     # print('Absolute velocity took {} seconds'.format(time.perf_counter() - starttime))
@@ -61,10 +65,13 @@ if __name__ == "__main__":
                     periods = ', '.join([str(groupData['oscillationPeriod']) for groupData in simulationConfig['groups'].values()])
                     phaseShifts = ', '.join([str(np.round(groupData['oscillationPhaseShift'], 3)) + 'pi' for groupData in simulationConfig['groups'].values()])
 
-                    videoPath = r'C:\Users\konst\OneDrive\Uni\Anstellung\Prof. Menzel (2020-22)\vicsek\simulation\videos'
+                    # videoPath = r'C:\Users\konst\OneDrive\Uni\Anstellung\Prof. Menzel (2020-22)\vicsek\simulation\videos'
+                    videoPath = r'D:\simulationdata\_videos'
                     uuid = uuid.uuid4()
-                    noGroupVideoName = f'singleSwimmerTrajectory_timeSteps={simulationConfig["timeSteps"]}_N={N}_r={rho}_e={simulationConfig["randomAngleAmplitude"]}_a=[{amplitudes}]_T=[{periods}]_phS=[{phaseShifts}]_{uuid}.mp4'
-                    groupVideoName = f'singleSwimmerTrajectory_timeSteps={simulationConfig["timeSteps"]}_N={N}_r={rho}_e={simulationConfig["randomAngleAmplitude"]}_a=[{amplitudes}]_T=[{periods}]_phS=[{phaseShifts}]_group_{uuid}.mp4'
+                    # noGroupVideoName = f'singleSwimmerTrajectory_t={simulationConfig["timeSteps"]}_N={N}_r={rho}_e={simulationConfig["randomAngleAmplitude"]}_a=[{amplitudes}]_T=[{periods}]_phS=[{phaseShifts}]_{uuid}.mp4'
+                    noGroupVideoName = f'singleSwimmerTrajectory_{uuid}.mp4'
+                    # groupVideoName = f'singleSwimmerTrajectory_t={simulationConfig["timeSteps"]}_N={N}_r={rho}_e={simulationConfig["randomAngleAmplitude"]}_a=[{amplitudes}]_T=[{periods}]_phS=[{phaseShifts}]_group_{uuid}.mp4'
+                    groupVideoName = f'singleSwimmerTrajectory_group_{uuid}.mp4'
                     simulation.animate(showGroup=False, saveVideo=True, videoPath=os.path.join(videoPath, noGroupVideoName))
                     simulation.animate(showGroup=True, saveVideo=True, videoPath=os.path.join(videoPath, groupVideoName))
                     break

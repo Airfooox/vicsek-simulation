@@ -106,10 +106,14 @@ class Simulation:
 
         self.absoluteVelocities = np.zeros((self.simulationConfig["timeSteps"]), dtype=np.float64)
         self.absoluteGroupVelocities = np.zeros((self.simulationConfig["timeSteps"], len(self.simulationConfig['groups'].values())), dtype=np.float64)
+        self.vectorialVelocities = np.zeros((self.simulationConfig["timeSteps"], 2), dtype=np.float64)
+        self.vectorialGroupVelocities = np.zeros((self.simulationConfig["timeSteps"], len(self.simulationConfig['groups'].values()), 2), dtype=np.float64)
         self.absoluteGroupVelocityConfig = np.array(list(map(lambda x: x['numSwimmers'], self.simulationConfig['groups'].values())), dtype=np.int16)
 
         self.totalAbsoluteVelocity = 0
         self.totalAbsoluteGroupVelocities = np.zeros(len(self.absoluteGroupVelocityConfig), dtype=np.float64)
+        self.totalVectorialVelocity = np.zeros(2, dtype=np.float64)
+        self.totalVectorialGroupVelocities = np.zeros((len(self.absoluteGroupVelocityConfig), 2), dtype=np.float64)
 
     def initializeGrid(self):
         self.grid.clear()
@@ -123,28 +127,31 @@ class Simulation:
 
             args = [self.numSwimmers, self.grid, previousState, self.absoluteGroupVelocityConfig,
                     self.simulationConfig['environmentSideLength'], self.simulationConfig['randomAngleAmplitude'],
-                    self.simulationConfig['interactionRadius'], self.simulationConfig['velocity']]
-            self.grid, self.states[t], self.absoluteVelocities[t], self.absoluteGroupVelocities[t] = self.calculateNewState(t, *args)
+                    self.simulationConfig['interactionRadius'], self.simulationConfig['interactionStrengthFactor'], self.simulationConfig['velocity']]
+            self.grid, self.states[t], self.vectorialVelocities[t], self.vectorialGroupVelocities[t], self.absoluteVelocities[t], self.absoluteGroupVelocities[t] = self.calculateNewState(t, *args)
 
         self.totalAbsoluteVelocity = Simulation.calculateAbsoluteVelocityTotal(
             self.simulationConfig["timeSteps"], self.framesUsedForMean,
             self.absoluteVelocities)
+        self.totalVectorialVelocity = np.mean(self.vectorialVelocities[self.framesUsedForMean:], axis=0)
 
         for groupIndex in np.arange(len(self.absoluteGroupVelocityConfig)):
             self.totalAbsoluteGroupVelocities[groupIndex] = Simulation.calculateAbsoluteVelocityTotal(
                 self.simulationConfig["timeSteps"], self.framesUsedForMean,
                 self.absoluteGroupVelocities[:, groupIndex])
 
+            self.totalVectorialGroupVelocities[groupIndex] = np.mean(self.vectorialGroupVelocities[self.framesUsedForMean:, groupIndex], axis=0)
+
         # printProgressBar(t, self.simulationConfig["timeSteps"] - 1, prefix='Simulation Progress:', suffix='Simulation Complete', length=50)
 
     @staticmethod
     @njit
-    def calculateNewState(t, numSwimmers, grid, previousState, absoluteGroupVelocityConfig, environmentSideLength, randomAngleAmplitude, interactionRadius, velocity):
-        totalSumVelocity = np.array([0, 0], dtype=np.float64)
+    def calculateNewState(t, numSwimmers, grid, previousState, absoluteGroupVelocityConfig, environmentSideLength, randomAngleAmplitude, interactionRadius, interactionStrengthFactor, velocity):
+        vectorialSumVelocity = np.array([0, 0], dtype=np.float64)
 
         absoluteGroupVelocityIndex = 0
         absoluteVelocityGroupCount = absoluteGroupVelocityConfig[absoluteGroupVelocityIndex]
-        groupSumVelocities = np.zeros((len(absoluteGroupVelocityConfig), 2), dtype=np.float64)
+        vectorialGroupSumVelocities = np.zeros((len(absoluteGroupVelocityConfig), 2), dtype=np.float64)
 
         newState = previousState.copy()
         for swimmerIndex in np.arange(numSwimmers):
@@ -244,28 +251,42 @@ class Simulation:
                         # print("SHADOW INTERACTION:", t, swimmerIndex, shadowInteractionSwimmerIndex, distanceBetween)
             # print(interactionSwimmerIndices)
 
+            # STANDARD VICSEK INTERACTION
             # i and j are in range
-            sinSum = np.sin(swimmerState[2])
-            cosSum = np.cos(swimmerState[2])
+            # sinSum = np.sin(swimmerState[2])
+            # cosSum = np.cos(swimmerState[2])
+            # for interactionSwimmerIndex in interactionSwimmerIndices:
+            #     interactionSwimmerState = previousState[interactionSwimmerIndex]
+            #     sinSum += np.sin(interactionSwimmerState[2])
+            #     cosSum += np.cos(interactionSwimmerState[2])
+            #
+            # averageAngle = np.arctan2(sinSum, cosSum)
+            # randomAngle = ((np.random.rand() - 0.5) * randomAngleAmplitude)
+            # cosinesOscillation = swimmerState[3] * np.cos(
+            #     (2 * np.pi / swimmerState[4]) * t + swimmerState[5])
+            # # print(averageAngle, cosinesOscillation, averageAngle + randomAngle + cosinesOscillation)
+            # swimmerState[2] = averageAngle + randomAngle + cosinesOscillation
+
+            # ORIENTATION POTENTIAL
+            preFactor = -interactionStrengthFactor / np.pi
+            sum = 0
             for interactionSwimmerIndex in interactionSwimmerIndices:
                 interactionSwimmerState = previousState[interactionSwimmerIndex]
-                sinSum += np.sin(interactionSwimmerState[2])
-                cosSum += np.cos(interactionSwimmerState[2])
+                sum += -np.sin(swimmerState[2] - interactionSwimmerState[2])
 
-            averageAngle = np.arctan2(sinSum, cosSum)
             randomAngle = ((np.random.rand() - 0.5) * randomAngleAmplitude)
             cosinesOscillation = swimmerState[3] * np.cos(
                 (2 * np.pi / swimmerState[4]) * t + swimmerState[5])
             # print(averageAngle, cosinesOscillation, averageAngle + randomAngle + cosinesOscillation)
-            swimmerState[2] = averageAngle + randomAngle + cosinesOscillation
+            swimmerState[2] += -preFactor * sum + randomAngle + cosinesOscillation
 
             xVelCos = np.cos(swimmerState[2])
             yVelSin = np.sin(swimmerState[2])
             velVec = np.array([xVelCos, yVelSin], dtype=np.float64)
-            totalSumVelocity += velVec
+            vectorialSumVelocity += velVec
 
             # sum velocity vectors for every group
-            groupSumVelocities[absoluteGroupVelocityIndex] += velVec
+            vectorialGroupSumVelocities[absoluteGroupVelocityIndex] += velVec
             absoluteVelocityGroupCount -= 1
             if absoluteVelocityGroupCount <= 0:
                 absoluteGroupVelocityIndex = min(absoluteGroupVelocityIndex + 1,
@@ -297,12 +318,17 @@ class Simulation:
                 grid.removeSwimmer(previousSwimmerGridIndex, swimmerIndex)
                 grid.addSwimmer(newSwimmerGridIndex, swimmerIndex)
 
-        absoluteVelocity = np.linalg.norm(totalSumVelocity) / numSwimmers
-        absoluteGroupVelocity = np.zeros(len(absoluteGroupVelocityConfig), dtype=np.float64)
-        for index, numGroupSwimmers in enumerate(absoluteGroupVelocityConfig):
-            absoluteGroupVelocity[index] = np.linalg.norm(groupSumVelocities[index]) / numGroupSwimmers
+        absoluteVelocity = np.linalg.norm(vectorialSumVelocity) / numSwimmers
+        vectorialVelocity = vectorialSumVelocity / np.linalg.norm(vectorialSumVelocity)
 
-        return grid, newState, absoluteVelocity, absoluteGroupVelocity
+        absoluteGroupVelocity = np.zeros(len(absoluteGroupVelocityConfig), dtype=np.float64)
+        vectorialGroupVelocity = np.zeros((len(absoluteGroupVelocityConfig), 2), dtype=np.float64)
+        for index, numGroupSwimmers in enumerate(absoluteGroupVelocityConfig):
+            absoluteGroupVelocity[index] = np.linalg.norm(vectorialGroupSumVelocities[index]) / numGroupSwimmers
+            vectorialGroupVelocity[index] = vectorialGroupSumVelocities[index] / np.linalg.norm(vectorialGroupSumVelocities[index])
+
+
+        return grid, newState, vectorialVelocity, vectorialGroupVelocity, absoluteVelocity, absoluteGroupVelocity
 
     @staticmethod
     def nonLinearFitting(x, y, func, initialParameters):
@@ -431,9 +457,9 @@ class Simulation:
             colorbar.ax.yaxis.set_major_formatter(majorTicks.formatter())
 
         rho = np.round(self.numSwimmers / self.simulationConfig['environmentSideLength']**2, 2)
-        generalSimulationConfigString = r'$N_{total}=%s, \varrho=%s, \eta=%s, r=%s$' %\
+        generalSimulationConfigString = r'$N_{total}=%s, \varrho=%s, \eta=%s, g=%s, r=%s$' %\
                                         (self.numSwimmers, rho, self.simulationConfig['randomAngleAmplitude'],
-                                         self.simulationConfig['interactionRadius'])
+                                         self.simulationConfig['interactionStrengthFactor'], self.simulationConfig['interactionRadius'])
         self.axis.text(
             0,
             self.simulationConfig["environmentSideLength"] + textPadding
@@ -453,18 +479,19 @@ class Simulation:
             color = None
             if showGroup:
                 color = colormap(norm(int(index)))
+
             self.axis.text(
                 0,
                 self.simulationConfig["environmentSideLength"] + textPadding
                 - (0.05 * (int(index) + 2)) * self.simulationConfig["environmentSideLength"],
-                groupsSimulationConfigString, color=colorg)
+                groupsSimulationConfigString, color=color)
 
         if fixedTimeStep:
             for trajectoryLine in self.trajectoryLines:
                 trajectoryLine.set_data(self.states[:fixedTimeStep, i, 0], self.states[:fixedTimeStep, i, 1])
 
             if saveFixedTimeSetPictureDir:
-                plt.savefig(saveFixedTimeSetPictureDir)
+                plt.savefig(saveFixedTimeSetPictureDir, bbox_inches='tight')
                 plt.close(self.figure)
             else:
                 plt.show()
@@ -514,8 +541,8 @@ class Simulation:
         if self.simulationConfig['saveVideo'] or saveVideo:
             if not videoPath:
                 videoPath = rf'C:\Users\konst\OneDrive\Uni\Anstellung\Prof. Menzel (2020-22)\vicsek\simulation\videos\{uuid.uuid4()}'
-            mpl.rcParams['animation.ffmpeg_path'] = r'C:\\Users\\konst\\Desktop\\ffmpeg\\bin\\ffmpeg.exe'
-            writervideo = animation.FFMpegWriter(fps=30, bitrate=5000, codec='h264_nvenc')
+            mpl.rcParams['animation.ffmpeg_path'] = r'C:\Users\konst\Desktop\ffmpeg\bin\ffmpeg.exe'
+            writervideo = animation.FFMpegWriter(fps=30, bitrate=5000)
             ani.save(
                 videoPath, writer=writervideo,
                 progress_callback=lambda i, n: printProgressBar(i, n, prefix='Animation Progress:',

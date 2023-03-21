@@ -88,7 +88,7 @@ def calculateResult(calculationData):
         simulationIdentifier = dirOfData + '_' + str(i)
 
         if (os.path.exists(simulationIdentifier) and
-                os.path.exists(os.path.join(simulationIdentifier, 'absoluteVelocity.txt')) and
+                os.path.exists(os.path.join(simulationIdentifier, 'totalAbsoluteVelocity.txt')) and
                 os.path.exists(os.path.join(simulationIdentifier, 'config.txt'))):
             subSimulationPaths.append(simulationIdentifier)
             if constants is None:
@@ -96,7 +96,7 @@ def calculateResult(calculationData):
                     constants = json.load(constantsFile)
 
     if constants is None or len(subSimulationPaths) == 0:
-        print(f'simulation {dirOfData} have no data saved.')
+        print(f'simulation {dirOfData} has no data saved.')
         return
 
     timeSteps = constants['timeSteps']
@@ -110,10 +110,10 @@ def calculateResult(calculationData):
 
         if reevaluateAbsoluteVelocities:
             reevalutedAbsoluteVelocity = calculateAbsoluteVelocityTotal(timeSteps, framesUsedForMean, timeEvolutionData)
-            with open(os.path.join(subSimulationPath, 'absoluteVelocity.txt'), 'w') as absoluteVelocityFile:
+            with open(os.path.join(subSimulationPath, 'totalAbsoluteVelocity.txt'), 'w') as absoluteVelocityFile:
                 json.dump(reevalutedAbsoluteVelocity, absoluteVelocityFile)
 
-        with open(os.path.join(subSimulationPath, 'absoluteVelocity.txt')) as resultFile:
+        with open(os.path.join(subSimulationPath, 'totalAbsoluteVelocity.txt')) as resultFile:
             absoluteVelocitySub = json.load(resultFile)
 
             if absoluteVelocitySub > 0:
@@ -122,7 +122,7 @@ def calculateResult(calculationData):
             # try:
             #
             # except json.decoder.JSONDecodeError:
-            #     print(dirOfData + '_' + str(i) + '/absoluteVelocity.txt')
+            #     print(dirOfData + '_' + str(i) + '/totalAbsoluteVelocity.txt')
 
         with open(os.path.join(subSimulationPath, 'timeEvolution.txt'), 'w') as timeEvolutionFile:
             json.dump(timeEvolutionData.tolist(), timeEvolutionFile)
@@ -134,8 +134,8 @@ def calculateResult(calculationData):
 
 
 if __name__ == "__main__":
-    dataDir = '/local/kzisiadis/vicsek-simulation_sameRho_phaseShift'
-    # dataDir = 'D:\\simulationdata'
+    # dataDir = '/local/kzisiadis/vicsek-simulation_sameRho_phaseShift'
+    dataDir = r'E:\simulationdata\variing_interaction_strength_with_oscillation'
     reevaluateAbsoluteVelocities = False
 
     # auto find all simulationGroups and evaluate the result for each simulationGroup
@@ -230,7 +230,7 @@ if __name__ == "__main__":
             simulationGroupName = simulationGroupData['name']
             sortedDict = sorted(simulationGroupData['resultDirectory'].items(), key=lambda x: x[0])
 
-            environmentSideLengths, numSwimmers, randomAngleAmplitude, absoluteVelocity, std = [], [], [], [], []
+            environmentSideLengths, groups, randomAngleAmplitude, absoluteVelocity, std = [], [], [], [], []
             timeEvolution = []
 
             for entry in sortedDict:
@@ -238,7 +238,7 @@ if __name__ == "__main__":
                 result = entry[1]
 
                 environmentSideLengths.append(result['constants']['environmentSideLength'])
-                numSwimmers.append(result['constants']['numSwimmers'])
+                groups.append(result['constants']['groups'])
                 randomAngleAmplitude.append(result['constants']['randomAngleAmplitude'])
                 absoluteVelocity.append(result['va'])
                 std.append(result['std'])
@@ -246,7 +246,7 @@ if __name__ == "__main__":
 
             obj = {
                 'environmentSideLengths': environmentSideLengths,
-                'numSwimmers': numSwimmers,
+                'groups': groups,
                 'randomAngleAmplitude': randomAngleAmplitude,
                 'absoluteVelocity': absoluteVelocity,
                 'std': std

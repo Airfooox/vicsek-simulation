@@ -2,20 +2,24 @@ import os
 import json
 import itertools
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.colors
+mpl.use("TkAgg")
 
 if __name__ == "__main__":
-    plotResultDir = "C:\\Users\\konst\\OneDrive\\Uni\\Anstellung\\Prof. Menzel (2020-22)\\vicsek\\daten\\vicsek-simulation_sameRho_phaseShift"
-    plotSaveFigDir = "C:\\Users\\konst\\OneDrive\\Uni\\Anstellung\\Prof. Menzel (2020-22)\\vicsek\\graphen\\vicsek-simulation_sameRho_phaseShift"
+    # plotResultDir = r"C:\Users\konst\OneDrive\Uni\Anstellung\Prof. Menzel (2020-22)\vicsek\daten\vicsek-simulation_sameRho_phaseShift"
+    # plotSaveFigDir = r"C:\Users\konst\OneDrive\Uni\Anstellung\Prof. Menzel (2020-22)\vicsek\graphen\vicsek-simulation_sameRho_phaseShift"
+    plotResultDir = r"E:\simulationdata\variing_interaction_strength_with_oscillation\_results"
+    plotSaveFigDir = r"E:\simulationdata\variing_interaction_strength_with_oscillation\_results"
     dirList = os.listdir(plotResultDir)
 
     attributeAsX = 'randomAngleAmplitude'
-    plotNumSwimmersWhitelist = ["1000"]
-    plotRhoWhitelist = ["2"]
-    plotAmplitudeWhitelist = ["0.02pi", "0.03pi", "0.06pi"]
-    plotPeriodWhitelist = ["50"]
+    plotNumSwimmersWhitelist = []
+    plotRhoWhitelist = []
+    plotAmplitudeWhitelist = []
+    plotPeriodWhitelist = []
     applyNumSwimmersWhitelist = len(plotNumSwimmersWhitelist) != 0
     applyRhoWhitelist = len(plotRhoWhitelist) != 0
     applyAmplitudeWhitelist = len(plotAmplitudeWhitelist) != 0
@@ -31,6 +35,7 @@ if __name__ == "__main__":
             amplitude = entryArgs[5].split('=')[1]
             period = entryArgs[6].split('=')[1]
             phaseShift = entryArgs[7].split('=')[1]
+            interactionStrength = entryArgs[8].split('=')[1]
 
             if applyNumSwimmersWhitelist and numSwimmers not in plotNumSwimmersWhitelist:
                 continue
@@ -52,7 +57,7 @@ if __name__ == "__main__":
 
             plotResultFiles.append(
                 {'entry': entry, 'numSwimmers': numSwimmers, 'rho': rho, 'amplitude': amplitude, 'period': period,
-                 'phaseShift': phaseShift, 'x': x, 'y': y, 'std': std})
+                 'phaseShift': phaseShift, 'interactionStrength': interactionStrength, 'x': x, 'y': y, 'std': std})
 
     colors = cm.tab20(range(len(plotResultFiles)))
 
@@ -62,6 +67,7 @@ if __name__ == "__main__":
         amplitude = plotResultEntry['amplitude']
         period = plotResultEntry['period']
         phaseShift = plotResultEntry['phaseShift']
+        interactionStrength = plotResultEntry['interactionStrength']
         if int(numSwimmers) == 400:
             marker='^'
         elif int(numSwimmers) == 1000:
@@ -70,7 +76,7 @@ if __name__ == "__main__":
             marker='D'
 
         plt.errorbar(plotResultEntry['x'], plotResultEntry['y'], yerr=plotResultEntry['std'], fmt= matplotlib.colors.rgb2hex(colors[i]), marker=marker, linestyle='none',
-                     label=f'$N={numSwimmers}, \\varrho={rho}, A={amplitude}, T={period}, \\Delta \\varphi={phaseShift}$')
+                     label=rf'$N={numSwimmers}, \varrho={rho}, A={amplitude}, T={period}, \Delta \varphi={phaseShift}, g={interactionStrength}$')
 
     # plt.xlabel(r'$\rho \longrightarrow$')
     plt.xlabel(r'$\eta \longrightarrow$')

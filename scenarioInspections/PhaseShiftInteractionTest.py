@@ -19,9 +19,9 @@ if __name__ == "__main__":
     #     os.mkdir(trajectoriesPictureDir)
 
     simulationConfig = {
-        "timeSteps": 350,
+        "timeSteps": 1000,
 
-        "environmentSideLength": 1,
+        "environmentSideLength": 2,
         "groups": {
             "1": {
                 "numSwimmers": 1,
@@ -37,7 +37,8 @@ if __name__ == "__main__":
             }
         },
         "interactionRadius": 0.2,
-        "randomAngleAmplitude": 0,
+        "randomAngleAmplitude": 0.45,
+        "interactionStrengthFactor": 0.3,
 
         "velocity": 0.0025,
         "swimmerSize": 0.04,
@@ -50,18 +51,18 @@ if __name__ == "__main__":
     # override start position and orientation
     print(simulation.states[0, 0, :])
     simulation.states[0, 0, :3] = np.array(
-        [0.05 * simulationConfig['environmentSideLength'], 0.3 * simulationConfig['environmentSideLength'], 0],
+        [0.35 * simulationConfig['environmentSideLength'], 0.3 * simulationConfig['environmentSideLength'], 0],
         dtype=np.float64)
     print(simulation.states[0, 0, :])
     simulation.states[0, 1, :3] = np.array(
-        [0.45 * simulationConfig['environmentSideLength'], 0.7 * simulationConfig['environmentSideLength'], 0],
+        [0.55 * simulationConfig['environmentSideLength'], 0.5 * simulationConfig['environmentSideLength'], (-np.pi/4)],
         dtype=np.float64)
     simulation.initializeGrid()
     simulation.simulate()
     statesData = simulation.states
-
-    videoPath = r'C:\Users\konst\OneDrive\Uni\Anstellung\Prof. Menzel (2020-22)\vicsek\simulation\videos'
-    simulation.animate(showGroup=True, saveVideo=True, videoPath=os.path.join(videoPath, 'PhaseShiftInteractionTest.mp4'))
+    simulation.animate()
+    # videoPath = r'C:\Users\konst\OneDrive\Uni\Anstellung\Prof. Menzel (2020-22)\vicsek\simulation\videos'
+    # simulation.animate(showGroup=True, saveVideo=True, videoPath=os.path.join(videoPath, 'PhaseShiftInteractionTest.mp4'))
 
     # x, y, phi = statesData[:, 0, 0], statesData[:, 0, 1], (180/np.pi) * statesData[:, 0, 2]
     # DeltaR = list(map(lambda xy: (xy[0] - x[0])**2 + (xy[1] - y[0])**2, zip(x, y)))

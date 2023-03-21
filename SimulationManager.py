@@ -36,12 +36,16 @@ class SimulationManager:
         numSimulation = simulationScenario.numSimulation
         scenarioDataDir = simulationScenario.scenarioDataDir
         scenarioConfig = simulationScenario.scenarioConfig
+        timePercentageUsedForMean = simulationScenario.timePercentageUsedForMean
         saveTrajectoryData = simulationScenario.saveTrajectoryData
 
-        simulation = Simulation(simulationIndex, numSimulation, scenarioConfig)
+        simulation = Simulation(simulationIndex, numSimulation, scenarioConfig, timePercentageUsedForMean)
         simulation.simulate()
         absoluteVelocities = simulation.absoluteVelocities
-        absoluteVelocity = simulation.calculateAbsoluteVelocity()
+        totalAbsoluteVelocity = simulation.totalAbsoluteVelocity
+        totalAbsoluteGroupVelocities = simulation.totalAbsoluteGroupVelocities
+        totalVectorialVelocity = simulation.totalVectorialVelocity
+        totalVectorialGroupVelocities = simulation.totalVectorialGroupVelocities
 
         if not (os.path.exists(scenarioDataDir) and os.path.isdir(scenarioDataDir)):
             os.mkdir(scenarioDataDir)
@@ -52,12 +56,15 @@ class SimulationManager:
         with open(os.path.join(scenarioDataDir, 'absoluteVelocities.npy'), 'wb') as absoluteVelocitiesFile:
             np.save(absoluteVelocitiesFile, absoluteVelocities)
 
-        with open(os.path.join(scenarioDataDir, 'absoluteVelocity.txt'), 'w') as absoluteVelocityFile:
-            json.dump(absoluteVelocity, absoluteVelocityFile)
+        with open(os.path.join(scenarioDataDir, 'totalAbsoluteVelocity.txt'), 'w') as totalAbsoluteVelocityFile:
+            json.dump(totalAbsoluteVelocity, totalAbsoluteVelocityFile)
 
-        if saveTrajectoryData or absoluteVelocity <= 0:
+        with open(os.path.join(scenarioDataDir, 'totalVectorialVelocity.txt'), 'w') as totalVectorialVelocityFile:
+            json.dump(totalVectorialVelocity.tolist(), totalVectorialVelocityFile)
+
+        if saveTrajectoryData or totalAbsoluteVelocity <= 0:
             statesData = simulation.states
-            print(absoluteVelocity, os.path.join(scenarioDataDir, 'statesData.npy'))
+            print(totalAbsoluteVelocity, os.path.join(scenarioDataDir, 'statesData.npy'))
             with open(os.path.join(scenarioDataDir, 'statesData.npy'), 'wb') as statesFile:
                 np.save(statesFile, statesData)
 
@@ -95,6 +102,6 @@ class SimulationScenario:
         self.simulationIndex = simulationIndex
         self.numSimulation = numSimulation
         self.scenarioDataDir = scenarioDataDir
-        self.scenarioConstants = scenarioConfig
+        self.scenarioConfig = scenarioConfig
         self.timePercentageUsedForMean = timePercentageUsedForMean
         self.saveTrajectoryData = saveTrajectoryData

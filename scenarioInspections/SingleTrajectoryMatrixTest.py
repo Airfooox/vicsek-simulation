@@ -12,14 +12,15 @@ import matplotlib.pyplot as plt
 from util import multipleFormatter
 
 if __name__ == "__main__":
-    trajectoriesPictureDir = r'E:\simulationdata\singleTrajectories\eta=0'
+    trajectoriesPictureDir = r'D:\simulationdata\singleTrajectories_eta=0'
 
     if not (os.path.exists(trajectoriesPictureDir) and os.path.isdir(trajectoriesPictureDir)):
         os.mkdir(trajectoriesPictureDir)
 
     simulationConfigs = [
-        # {'eta': [0], 'amplitude': np.array([1, 1/2, 1/4, 1/8, 1/16, 1/32, 1/64]) * np.pi, 'period': np.arange(10, 100+1, 10)}
-        {'eta': [0], 'amplitude': [np.pi / 2], 'period': [100]}
+        # {'eta': [0], 'amplitude': np.array([1/2, 1/4]) * np.pi, 'period': [30, 50]},
+        # {'eta': [0], 'amplitude': np.array([1/8, 1/16, 1/32, 1/64]) * np.pi, 'period': np.arange(10, 70+1, 20)},
+        {'eta': [0], 'amplitude': [np.pi / 4], 'period': [50]}
     ]
 
     for configEntry in simulationConfigs:
@@ -31,7 +32,7 @@ if __name__ == "__main__":
             simulationConfig = {
                 "timeSteps": 500,
 
-                "environmentSideLength": 0.25,
+                "environmentSideLength": 2,
                 "groups": {
                     "1": {
                         "numSwimmers": 1,
@@ -42,8 +43,9 @@ if __name__ == "__main__":
                 },
                 "interactionRadius": 1,
                 "randomAngleAmplitude": eta,
+                'interactionStrengthFactor': 0,
 
-                "velocity": 0.0025,
+                "velocity": 0.03,
                 "swimmerSize": 0.04,
 
                 "saveVideo": False,
@@ -53,14 +55,16 @@ if __name__ == "__main__":
                                     timePercentageUsedForMean=25)
             # override start position and orientation
             simulation.states[0, 0, :3] = np.array([0.05 * simulationConfig['environmentSideLength'], 0.5 * simulationConfig['environmentSideLength'], 0], dtype=np.float64)
+            simulation.initializeGrid()
             simulation.simulate()
             statesData = simulation.states
-            saveFixedTimeSetPictureDir = os.path.join(trajectoriesPictureDir,
-                         f'singleSwimmerTrajectory_timeSteps={simulationConfig["timeSteps"]}_eta={eta}_amplitude={np.round(amplitude / np.pi, 3)}pi_period={period}.png')
-            # print(saveFixedTimeSetPictureDir)
+
+            # saveFixedTimeSetPictureDir = os.path.join(trajectoriesPictureDir,
+            #              f'singleSwimmerTrajectory_timeSteps={simulationConfig["timeSteps"]}_eta={eta}_amplitude={np.round(amplitude / np.pi, 3)}pi_period={period}.png')
             # simulation.animate(fixedTimeStep=simulationConfig['timeSteps'] - 1, saveFixedTimeSetPictureDir=saveFixedTimeSetPictureDir)
-            simulation.animate(fixedTimeStep=simulationConfig['timeSteps'] - 1, saveFixedTimeSetPictureDir=None)
-            # simulation.animate(fixedTimeStep=None)
+
+            # simulation.animate(fixedTimeStep=simulationConfig['timeSteps'] - 1, saveFixedTimeSetPictureDir=None)
+            simulation.animate(fixedTimeStep=None)
 
             # x, y, phi = statesData[:, 0, 0], statesData[:, 0, 1], (180/np.pi) * statesData[:, 0, 2]
             # DeltaR = list(map(lambda xy: (xy[0] - x[0])**2 + (xy[1] - y[0])**2, zip(x, y)))
