@@ -92,11 +92,11 @@ class Simulation:
                 xPos = np.random.rand() * self.simulationConfig["environmentSideLength"]
                 yPos = np.random.rand() * self.simulationConfig["environmentSideLength"]
                 vPhi = np.random.rand() * 2 * np.pi  # angle in rad
-                oscillationAmplitude = groupConfig["oscillationAmplitude"]
-                oscillationPeriod = groupConfig["oscillationPeriod"]
-                oscillationPhaseShift = groupConfig["oscillationPhaseShift"]
+                snakingAmplitude = groupConfig["snakingAmplitude"]
+                snakingPeriod = groupConfig["snakingPeriod"]
+                snakingPhaseshift = groupConfig["snakingPhaseshift"]
                 initialSwimmerState.append(
-                    [xPos, yPos, vPhi, oscillationAmplitude, oscillationPeriod, oscillationPhaseShift])
+                    [xPos, yPos, vPhi, snakingAmplitude, snakingPeriod, snakingPhaseshift])
 
         self.numSwimmers = len(initialSwimmerState)
         # initialize states array and add initial values for first frame
@@ -110,10 +110,16 @@ class Simulation:
         self.vectorialGroupVelocities = np.zeros((self.simulationConfig["timeSteps"], len(self.simulationConfig['groups'].values()), 2), dtype=np.float64)
         self.absoluteGroupVelocityConfig = np.array(list(map(lambda x: x['numSwimmers'], self.simulationConfig['groups'].values())), dtype=np.int16)
 
+        self.nematicOrderParameter = np.zeros((self.simulationConfig["timeSteps"]), dtype=np.float64)
+        self.nematicOrderParameterGroups = np.zeros((self.simulationConfig["timeSteps"], len(self.simulationConfig['groups'].values())), dtype=np.float64)
+
         self.totalAbsoluteVelocity = 0
         self.totalAbsoluteGroupVelocities = np.zeros(len(self.absoluteGroupVelocityConfig), dtype=np.float64)
         self.totalVectorialVelocity = np.zeros(2, dtype=np.float64)
         self.totalVectorialGroupVelocities = np.zeros((len(self.absoluteGroupVelocityConfig), 2), dtype=np.float64)
+
+        self.totalNematicOrderParameter = 0
+        self.totalNematicOrderParameterGroups = np.zeros(len(self.absoluteGroupVelocityConfig), dtype=np.float64)
 
     def initializeGrid(self):
         self.grid.clear()
@@ -128,12 +134,15 @@ class Simulation:
             args = [self.numSwimmers, self.grid, previousState, self.absoluteGroupVelocityConfig,
                     self.simulationConfig['environmentSideLength'], self.simulationConfig['randomAngleAmplitude'],
                     self.simulationConfig['interactionRadius'], self.simulationConfig['interactionStrengthFactor'], self.simulationConfig['velocity']]
-            self.grid, self.states[t], self.vectorialVelocities[t], self.vectorialGroupVelocities[t], self.absoluteVelocities[t], self.absoluteGroupVelocities[t] = self.calculateNewState(t, *args)
+            self.grid, self.states[t], self.vectorialVelocities[t], self.vectorialGroupVelocities[t], self.absoluteVelocities[t], self.absoluteGroupVelocities[t], self.nematicOrderParameter[t], self.nematicOrderParameterGroups[t] = self.calculateNewState(t, *args)
 
         self.totalAbsoluteVelocity = Simulation.calculateAbsoluteVelocityTotal(
             self.simulationConfig["timeSteps"], self.framesUsedForMean,
             self.absoluteVelocities)
         self.totalVectorialVelocity = np.mean(self.vectorialVelocities[self.framesUsedForMean:], axis=0)
+
+        self.totalNematicOrderParameter = np.mean(self.nematicOrderParameter[self.framesUsedForMean:])
+        self.totalNematicOrderParameterGroups = np.mean(self.nematicOrderParameterGroups[self.framesUsedForMean:], axis=0)
 
         for groupIndex in np.arange(len(self.absoluteGroupVelocityConfig)):
             self.totalAbsoluteGroupVelocities[groupIndex] = Simulation.calculateAbsoluteVelocityTotal(
@@ -152,6 +161,14 @@ class Simulation:
         absoluteGroupVelocityIndex = 0
         absoluteVelocityGroupCount = absoluteGroupVelocityConfig[absoluteGroupVelocityIndex]
         vectorialGroupSumVelocities = np.zeros((len(absoluteGroupVelocityConfig), 2), dtype=np.float64)
+
+        # cos^2(phi)
+        nematicSumTerm1 = 0
+        # cos(phi)sin(phi)
+        nematicSumTerm2 = 0
+
+        # [:, 0] = cos^2(phi), [:, 1] = cos(phi)sin(phi)
+        nematicSumTermsGroup = np.zeros((len(absoluteGroupVelocityConfig), 2), dtype=np.float64)
 
         newState = previousState.copy()
         for swimmerIndex in np.arange(numSwimmers):
@@ -272,7 +289,11 @@ class Simulation:
             sum = 0
             for interactionSwimmerIndex in interactionSwimmerIndices:
                 interactionSwimmerState = previousState[interactionSwimmerIndex]
-                sum += -np.sin(swimmerState[2] - interactionSwimmerState[2])
+                # polar alignment
+                # sum += -np.sin(swimmerState[2] - interactionSwimmerState[2])
+
+                # apolar / nematic alignment
+                sum += -np.sin(2 * (swimmerState[2] - interactionSwimmerState[2]))
 
             randomAngle = ((np.random.rand() - 0.5) * randomAngleAmplitude)
             cosinesOscillation = swimmerState[3] * np.cos(
@@ -285,8 +306,16 @@ class Simulation:
             velVec = np.array([xVelCos, yVelSin], dtype=np.float64)
             vectorialSumVelocity += velVec
 
+            # nematic order parameter
+            nematicSumTerm1 += (xVelCos)**2
+            nematicSumTerm2 += (xVelCos * yVelSin)
+
             # sum velocity vectors for every group
             vectorialGroupSumVelocities[absoluteGroupVelocityIndex] += velVec
+
+            nematicSumTermsGroup[absoluteGroupVelocityIndex, 0] += nematicSumTerm1
+            nematicSumTermsGroup[absoluteGroupVelocityIndex, 1] += nematicSumTerm2
+
             absoluteVelocityGroupCount -= 1
             if absoluteVelocityGroupCount <= 0:
                 absoluteGroupVelocityIndex = min(absoluteGroupVelocityIndex + 1,
@@ -323,12 +352,16 @@ class Simulation:
 
         absoluteGroupVelocity = np.zeros(len(absoluteGroupVelocityConfig), dtype=np.float64)
         vectorialGroupVelocity = np.zeros((len(absoluteGroupVelocityConfig), 2), dtype=np.float64)
+
+        nematicOrderParameter = 2 / numSwimmers * ((nematicSumTerm1 - 1 / 2) ** 2 + (nematicSumTerm2) ** 2) ** (1 / 2)
+        nematicOrderParameterGroups = np.zeros(len(absoluteGroupVelocityConfig), dtype=np.float64)
         for index, numGroupSwimmers in enumerate(absoluteGroupVelocityConfig):
             absoluteGroupVelocity[index] = np.linalg.norm(vectorialGroupSumVelocities[index]) / numGroupSwimmers
             vectorialGroupVelocity[index] = vectorialGroupSumVelocities[index] / np.linalg.norm(vectorialGroupSumVelocities[index])
 
+            nematicOrderParameterGroups[index] = 2 / numSwimmers * ((nematicSumTermsGroup[index, 0] - 1 / 2) ** 2 + (nematicSumTermsGroup[index, 1]) ** 2) ** (1 / 2)
 
-        return grid, newState, vectorialVelocity, vectorialGroupVelocity, absoluteVelocity, absoluteGroupVelocity
+        return grid, newState, vectorialVelocity, vectorialGroupVelocity, absoluteVelocity, absoluteGroupVelocity, nematicOrderParameter, nematicOrderParameterGroups
 
     @staticmethod
     def nonLinearFitting(x, y, func, initialParameters):
@@ -468,9 +501,9 @@ class Simulation:
 
         for index, groupConfig in self.simulationConfig['groups'].items():
             groupNumSwimmers = groupConfig['numSwimmers']
-            amplitude = groupConfig['oscillationAmplitude']
-            period = groupConfig['oscillationPeriod']
-            phaseShift = groupConfig['oscillationPhaseShift']
+            amplitude = groupConfig['snakingAmplitude']
+            period = groupConfig['snakingPeriod']
+            phaseShift = groupConfig['snakingPhaseshift']
             amplitudeString = util.multipleFormatter(2 ** 16, np.pi)(amplitude, None)
             phaseShiftString = util.multipleFormatter(2 ** 16, np.pi)(phaseShift, None)
             groupsSimulationConfigString = r'Gruppe $%s: (N=%s, A=$%s$, T=%s, \Delta \varphi=$%s$)$' % \

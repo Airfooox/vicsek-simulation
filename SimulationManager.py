@@ -24,7 +24,7 @@ class SimulationManager:
         for simulationGroup in self.simulationGroups:
             simulationScenarios = simulationScenarios + simulationGroup.simulationScenarios
 
-        pool = ProcessingPool(nodes=(mp.cpu_count() - 2))
+        pool = ProcessingPool(nodes=(mp.cpu_count() - 1))
         for _ in tqdm(pool.imap(SimulationManager.runSimulation, simulationScenarios), total=len(simulationScenarios)):
             pass
         pool.close()
@@ -46,21 +46,29 @@ class SimulationManager:
         totalAbsoluteGroupVelocities = simulation.totalAbsoluteGroupVelocities
         totalVectorialVelocity = simulation.totalVectorialVelocity
         totalVectorialGroupVelocities = simulation.totalVectorialGroupVelocities
+        totalNematicOrderParameter = simulation.totalNematicOrderParameter
+        totalNematicOrderParameterGroups = simulation.totalNematicOrderParameterGroups
 
         if not (os.path.exists(scenarioDataDir) and os.path.isdir(scenarioDataDir)):
             os.mkdir(scenarioDataDir)
 
-        with open(os.path.join(scenarioDataDir, 'config.txt'), 'w') as configFile:
+        with open(os.path.join(scenarioDataDir, 'config.json'), 'w') as configFile:
             json.dump(scenarioConfig, configFile)
 
         with open(os.path.join(scenarioDataDir, 'absoluteVelocities.npy'), 'wb') as absoluteVelocitiesFile:
             np.save(absoluteVelocitiesFile, absoluteVelocities)
 
-        with open(os.path.join(scenarioDataDir, 'totalAbsoluteVelocity.txt'), 'w') as totalAbsoluteVelocityFile:
-            json.dump(totalAbsoluteVelocity, totalAbsoluteVelocityFile)
+        totalVelocities = {
+            'totalAbsoluteVelocity': totalAbsoluteVelocity,
+            'totalAbsoluteGroupVelocities': totalAbsoluteGroupVelocities.tolist(),
+            'totalVectorialVelocity': totalVectorialVelocity.tolist(),
+            'totalVectorialGroupVelocities': totalVectorialGroupVelocities.tolist(),
+            'totalNematicOrderParameter': totalNematicOrderParameter,
+            'totalNematicOrderParameterGroups': totalNematicOrderParameterGroups.tolist()
+        }
 
-        with open(os.path.join(scenarioDataDir, 'totalVectorialVelocity.txt'), 'w') as totalVectorialVelocityFile:
-            json.dump(totalVectorialVelocity.tolist(), totalVectorialVelocityFile)
+        with open(os.path.join(scenarioDataDir, 'totalVelocities.json'), 'w') as totalVelocitiesFile:
+            json.dump(totalVelocities, totalVelocitiesFile)
 
         if saveTrajectoryData or totalAbsoluteVelocity <= 0:
             statesData = simulation.states
@@ -87,7 +95,7 @@ class SimulationGroup:
             'timePercentageUsedForMean': self.timePercentageUsedForMean,
             'saveTrajectoryData': self.saveTrajectoryData,
         }
-        with open(os.path.join(simulationDataDir, "simulationGroupConfig.txt"), "w") as simulationGroupConfigFile:
+        with open(os.path.join(simulationDataDir, "simulationGroupConfig.json"), "w") as simulationGroupConfigFile:
             json.dump(simulationGroupConfig, simulationGroupConfigFile)
 
         self.simulationScenarios = []

@@ -21,20 +21,20 @@ if __name__ == "__main__":
         "groups": {
             "1": {
                 "numSwimmers": N,
-                "oscillationAmplitude": np.pi/16 * 0,
-                "oscillationPeriod": 30,  # how many timesteps for one full oscillation
-                "oscillationPhaseShift": 0
+                "snakingAmplitude": np.pi/16 * 0,
+                "snakingPeriod": 30,  # how many timesteps for one full oscillation
+                "snakingPhaseshift": 0
             },
             # "2": {
             #     "numSwimmers": 200,
-            #     "oscillationAmplitude":  np.pi / 32,
-            #     "oscillationPeriod": 100,  # how many timesteps for one full oscillation
-            #     "oscillationPhaseShift": np.pi / 2
+            #     "snakingAmplitude":  np.pi / 32,
+            #     "snakingPeriod": 100,  # how many timesteps for one full oscillation
+            #     "snakingPhaseshift": np.pi / 2
             # }
         },
         "interactionRadius": 1,
         "randomAngleAmplitude": 0,
-        "interactionStrengthFactor": 0.5,
+        "interactionStrengthFactor": 0.01,
 
         "velocity": 0.0025,
 
@@ -61,9 +61,9 @@ if __name__ == "__main__":
             while True:
                 saveFiles = input('Save both video files? (y/n)')
                 if saveFiles.lower() == 'y':
-                    amplitudes = ', '.join([str(np.round(groupData['oscillationAmplitude'], 3)) + 'pi' for groupData in simulationConfig['groups'].values()])
-                    periods = ', '.join([str(groupData['oscillationPeriod']) for groupData in simulationConfig['groups'].values()])
-                    phaseShifts = ', '.join([str(np.round(groupData['oscillationPhaseShift'], 3)) + 'pi' for groupData in simulationConfig['groups'].values()])
+                    amplitudes = ', '.join([str(np.round(groupData['snakingAmplitude'], 3)) + 'pi' for groupData in simulationConfig['groups'].values()])
+                    periods = ', '.join([str(groupData['snakingPeriod']) for groupData in simulationConfig['groups'].values()])
+                    phaseShifts = ', '.join([str(np.round(groupData['snakingPhaseshift'], 3)) + 'pi' for groupData in simulationConfig['groups'].values()])
 
                     # videoPath = r'C:\Users\konst\OneDrive\Uni\Anstellung\Prof. Menzel (2020-22)\vicsek\simulation\videos'
                     videoPath = r'D:\simulationdata\_videos'

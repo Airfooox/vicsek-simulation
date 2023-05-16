@@ -36,9 +36,9 @@ if __name__ == "__main__":
                 "groups": {
                     "1": {
                         "numSwimmers": 1,
-                        "oscillationAmplitude": amplitude,
-                        "oscillationPeriod": period,  # how many timesteps for one full oscillation
-                        "oscillationPhaseShift": 0
+                        "snakingAmplitude": amplitude,
+                        "snakingPeriod": period,  # how many timesteps for one full oscillation
+                        "snakingPhaseshift": 0
                     }
                 },
                 "interactionRadius": 1,

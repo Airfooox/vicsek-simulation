@@ -12,15 +12,18 @@ import matplotlib.pyplot as plt
 from util import multipleFormatter
 
 if __name__ == "__main__":
-    trajectoriesPictureDir = r'D:\simulationdata\singleTrajectories_eta=0'
+    trajectoriesPictureDir = r'C:\Users\konst\OneDrive\Uni\Lehre\7. Semester\Bachelorarbeit\tex\img\singleTrajectories_eta=0'
 
     if not (os.path.exists(trajectoriesPictureDir) and os.path.isdir(trajectoriesPictureDir)):
         os.mkdir(trajectoriesPictureDir)
 
     simulationConfigs = [
-        {'eta': [0], 'amplitude': np.array([1/4]) * np.pi, 'period': [50]},
+        {'eta': [0], 'amplitude': np.array([1/2]) * np.pi, 'period': [30]},
         # {'eta': [0], 'amplitude': np.array([1/2, 1/4]) * np.pi, 'period': [30, 50]},
-        # {'eta': [0], 'amplitude': np.array([1/8, 1/16, 1/32, 1/64]) * np.pi, 'period': np.arange(10, 70+1, 20)},
+        # {'eta': [0], 'amplitude': np.array([1/8]) * np.pi, 'period': np.arange(10, 70+1, 20)},
+        # {'eta': [0], 'amplitude': np.array([1/16]) * np.pi, 'period': np.arange(10, 110+1, 20)},
+        # {'eta': [0], 'amplitude': np.array([1/32]) * np.pi, 'period': np.arange(10, 170+1, 20)},
+        # {'eta': [0], 'amplitude': np.array([1/64]) * np.pi, 'period': np.arange(10, 250+1, 20)},
         # {'eta': [0], 'amplitude': [np.pi / 32], 'period': [130]}
     ]
 
@@ -32,7 +35,7 @@ if __name__ == "__main__":
 
             phi = 0
 
-            tMax = 200
+            tMax = 150
             theta = np.zeros(tMax)
             x, y = np.zeros(tMax), np.zeros(tMax)
 
@@ -50,13 +53,13 @@ if __name__ == "__main__":
                 averageAngle = np.arctan2(np.sin(theta[t - 1]), np.cos(theta[t - 1]))
                 # averageAngle = theta[t-1]
                 randomAngle = ((np.random.rand() - 0.5) * eta)
-                cosinesOscillation = amplitude * np.cos((2 * np.pi / period) * t + phi)
+                # cosinesOscillation = amplitude * np.cos((2 * np.pi / period) * t + phi)
 
-                # k1 = amplitude * np.cos((2*np.pi / period) * t + phi)
-                # k2 = amplitude * np.cos((2*np.pi / period) * (t+1/2) + phi)
-                # k3 = amplitude * np.cos((2*np.pi / period) * (t+1/2) + phi)
-                # k4 = amplitude * np.cos((2*np.pi / period) * (t+1) + phi)
-                # cosinesOscillation = (k1 + 2*k2 + 2*k3 + k4) / 6
+                k1 = amplitude * np.cos((2*np.pi / period) * t + phi)
+                k2 = amplitude * np.cos((2*np.pi / period) * (t+1/2) + phi)
+                k3 = amplitude * np.cos((2*np.pi / period) * (t+1/2) + phi)
+                k4 = amplitude * np.cos((2*np.pi / period) * (t+1) + phi)
+                cosinesOscillation = (k1 + 2*k2 + 2*k3 + k4) / 6
 
                 theta[t] = averageAngle + randomAngle + cosinesOscillation
                 xVelCos = np.cos(theta[t])
@@ -64,7 +67,7 @@ if __name__ == "__main__":
                 x[t] = x[t - 1] + 0.03 * xVelCos
                 y[t] = y[t - 1] + 0.03 * yVelSin
 
-            print(theta[0], theta[1])
+            # print(theta[0], theta[1])
             # fig1 = plt.figure(1)
             # plt.plot(np.arange(tMax), theta)
             # plt.xlabel(r'$t \longrightarrow$')
@@ -76,17 +79,23 @@ if __name__ == "__main__":
             # plt.ylim((-2.1, 2.8))
             plt.xlabel(r'$x \longrightarrow$')
             plt.ylabel(r'$y \longrightarrow$')
-            plt.xticks(fontsize=11)
-            plt.yticks(fontsize=11)
-            axis2.xaxis.get_label().set_fontsize(14)
-            axis2.yaxis.get_label().set_fontsize(14)
             axis2.set(adjustable='datalim', aspect='equal')
+
+            xStart, xEnd = axis2.get_xlim()
+            yStart, yEnd = axis2.get_ylim()
+            # axis2.xaxis.set_ticks(np.round(np.arange(xStart, xEnd, (xEnd - xStart + 1) / 5), 2))
+            plt.xticks(fontsize=11 * 1.5)
+            plt.yticks(fontsize=11 * 1.5)
+            axis2.xaxis.get_label().set_fontsize(14 * 1.5)
+            axis2.yaxis.get_label().set_fontsize(14 * 1.5)
+
 
             plt.show()
 
             # saveFixedTimeSetPictureDir = os.path.join(trajectoriesPictureDir,
             #                                           f'singleSwimmerTrajectory_timeSteps={tMax}_eta={eta}_amplitude={np.round(amplitude / np.pi, 4)}pi_period={period}.png')
             # plt.savefig(saveFixedTimeSetPictureDir, bbox_inches='tight')
+            # plt.close()
 
 
 

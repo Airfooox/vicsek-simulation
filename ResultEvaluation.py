@@ -88,11 +88,11 @@ def calculateResult(calculationData):
         simulationIdentifier = dirOfData + '_' + str(i)
 
         if (os.path.exists(simulationIdentifier) and
-                os.path.exists(os.path.join(simulationIdentifier, 'totalAbsoluteVelocity.txt')) and
-                os.path.exists(os.path.join(simulationIdentifier, 'config.txt'))):
+                os.path.exists(os.path.join(simulationIdentifier, 'totalVelocities.json')) and
+                os.path.exists(os.path.join(simulationIdentifier, 'config.json'))):
             subSimulationPaths.append(simulationIdentifier)
             if constants is None:
-                with open(os.path.join(simulationIdentifier, 'config.txt')) as constantsFile:
+                with open(os.path.join(simulationIdentifier, 'config.json')) as constantsFile:
                     constants = json.load(constantsFile)
 
     if constants is None or len(subSimulationPaths) == 0:
@@ -103,39 +103,67 @@ def calculateResult(calculationData):
     framesUsedForMean = np.ceil(((1 - (timePercentageUsedForMean / 100)) * timeSteps))
     timeEvolution = np.zeros((timeSteps), dtype=np.float64)
 
-    selectedSubVelocities = []
+    selectedTotalAbsoluteVelocity = []
+    selectedTotalAbsoluteGroupVelocities = []
+    selectedTotalVectorialVelocity = []
+    selectedTotalVectorialGroupVelocities = []
+    selectedTotalNematicOrderParameter = []
+    selectedTotalNematicOrderParameterGroups = []
     for subSimulationPath in subSimulationPaths:
         timeEvolutionData = np.load(os.path.join(subSimulationPath, 'absoluteVelocities.npy'))
         timeEvolution = np.add(timeEvolution, timeEvolutionData)
 
         if reevaluateAbsoluteVelocities:
             reevalutedAbsoluteVelocity = calculateAbsoluteVelocityTotal(timeSteps, framesUsedForMean, timeEvolutionData)
-            with open(os.path.join(subSimulationPath, 'totalAbsoluteVelocity.txt'), 'w') as absoluteVelocityFile:
-                json.dump(reevalutedAbsoluteVelocity, absoluteVelocityFile)
+            with open(os.path.join(subSimulationPath, 'totalVelocities.json'), 'rw') as totalVelocitiesFile:
+                totalVelocities = json.load(totalVelocitiesFile)
+                totalVelocities['totalAbsoluteVelocity'] = reevalutedAbsoluteVelocity
+                json.dump(totalVelocities, totalVelocitiesFile)
 
-        with open(os.path.join(subSimulationPath, 'totalAbsoluteVelocity.txt')) as resultFile:
-            absoluteVelocitySub = json.load(resultFile)
+        with open(os.path.join(subSimulationPath, 'totalVelocities.json')) as resultFile:
+            totalVelocities = json.load(resultFile)
 
-            if absoluteVelocitySub > 0:
-                selectedSubVelocities.append(absoluteVelocitySub)
+            if totalVelocities['totalAbsoluteVelocity'] > 0:
+                selectedTotalAbsoluteVelocity.append(totalVelocities['totalAbsoluteVelocity'])
+                selectedTotalAbsoluteGroupVelocities.append(totalVelocities['totalAbsoluteGroupVelocities'])
+                selectedTotalVectorialVelocity.append(totalVelocities['totalVectorialVelocity'])
+                selectedTotalVectorialGroupVelocities.append(totalVelocities['totalVectorialGroupVelocities'])
+                selectedTotalNematicOrderParameter.append(totalVelocities['totalNematicOrderParameter'])
+                selectedTotalNematicOrderParameterGroups.append(totalVelocities['totalNematicOrderParameterGroups'])
 
             # try:
             #
             # except json.decoder.JSONDecodeError:
-            #     print(dirOfData + '_' + str(i) + '/totalAbsoluteVelocity.txt')
+            #     print(dirOfData + '_' + str(i) + '/totalVelocities.txt')
 
-        with open(os.path.join(subSimulationPath, 'timeEvolution.txt'), 'w') as timeEvolutionFile:
+        with open(os.path.join(subSimulationPath, 'timeEvolution.json'), 'w') as timeEvolutionFile:
             json.dump(timeEvolutionData.tolist(), timeEvolutionFile)
 
-    timeEvolution = timeEvolution / len(selectedSubVelocities)
+    timeEvolution = timeEvolution / len(selectedTotalAbsoluteVelocity)
 
-    simulationGroupDirectory[currentSimulationNum] = {'va': np.mean(selectedSubVelocities), 'std': np.std(selectedSubVelocities), 'constants': constants,
+    totalAbsoluteVelocity, std = np.mean(selectedTotalAbsoluteVelocity), np.std(selectedTotalAbsoluteVelocity)
+    totalAbsoluteGroupVelocities, totalAbsoluteGroupVelocityStds = np.mean(selectedTotalAbsoluteGroupVelocities, axis=0), np.std(selectedTotalAbsoluteGroupVelocities, axis=0)
+
+    totalNematicOrderParameter, totalNematicOrderParameterStd = np.mean(selectedTotalNematicOrderParameter), np.std(selectedTotalNematicOrderParameter)
+    totalNematicOrderParameterGroups, totalNematicOrderParameterGroupsStd = np.mean(selectedTotalNematicOrderParameterGroups, axis=0), np.std(selectedTotalNematicOrderParameterGroups, axis=0)
+
+    simulationGroupDirectory[currentSimulationNum] = {'totalAbsoluteVelocity': totalAbsoluteVelocity,
+                                                      'totalAbsoluteVelocityStd': std,
+                                                      'totalAbsoluteGroupVelocities': totalAbsoluteGroupVelocities.tolist(),
+                                                      'totalAbsoluteGroupVelocityStd': totalAbsoluteGroupVelocityStds.tolist(),
+                                                      'totalVectorialVelocity': selectedTotalVectorialVelocity,
+                                                      'totalVectorialGroupVelocities': selectedTotalVectorialGroupVelocities,
+                                                      'totalNematicOrderParameter': totalNematicOrderParameter,
+                                                      'totalNematicOrderParameterStd': totalNematicOrderParameterStd,
+                                                      'totalNematicOrderParameterGroups': totalNematicOrderParameterGroups.tolist(),
+                                                      'totalNematicOrderParameterGroupsStd': totalNematicOrderParameterGroupsStd.tolist(),
+                                                      'constants': constants,
                                                       'timeEvolution': timeEvolution.tolist()}
 
 
 if __name__ == "__main__":
-    # dataDir = '/local/kzisiadis/vicsek-simulation_sameRho_phaseShift'
-    dataDir = r'E:\simulationdata\variing_interaction_strength_with_oscillation'
+    dataDir = r'/local/kzisiadis/multiple_groups/two_snaking_parameter_sets'
+    # dataDir = r'E:\simulationdata\variing_interaction_strength_with_oscillation'
     reevaluateAbsoluteVelocities = False
 
     # auto find all simulationGroups and evaluate the result for each simulationGroup
@@ -144,7 +172,7 @@ if __name__ == "__main__":
         if not (os.path.exists(resultsPath) and os.path.isdir(resultsPath)):
             os.mkdir(resultsPath)
         else:
-            filelist = [f for f in os.listdir(resultsPath) if f.endswith(".txt")]
+            filelist = [f for f in os.listdir(resultsPath) if f.endswith(".json")]
             for file in filelist:
                 os.remove(os.path.join(resultsPath, file))
 
@@ -156,8 +184,8 @@ if __name__ == "__main__":
         simulationGroups = manager.dict()
         for entry in dirList:
             if os.path.isdir(os.path.join(dataDir, entry)):
-                if os.path.exists(os.path.join(dataDir, entry, 'simulationGroupConfig.txt')):
-                    with open(os.path.join(dataDir, entry, 'simulationGroupConfig.txt')) as simulationGroupConfigFile:
+                if os.path.exists(os.path.join(dataDir, entry, 'simulationGroupConfig.json')):
+                    with open(os.path.join(dataDir, entry, 'simulationGroupConfig.json')) as simulationGroupConfigFile:
                         simulationGroupConfig = json.load(simulationGroupConfigFile)
                 # if the config file doesnt exist, count and create a simulationGroupConfig file
                 else:
@@ -190,7 +218,7 @@ if __name__ == "__main__":
                         'timePercentageUsedForMean': 25
                     }
 
-                    with open(os.path.join(dataDir, entry, 'simulationGroupConfig.txt'),
+                    with open(os.path.join(dataDir, entry, 'simulationGroupConfig.json'),
                               "w") as simulationGroupConfigFile:
                         json.dump(simulationGroupConfig, simulationGroupConfigFile)
 
@@ -230,8 +258,10 @@ if __name__ == "__main__":
             simulationGroupName = simulationGroupData['name']
             sortedDict = sorted(simulationGroupData['resultDirectory'].items(), key=lambda x: x[0])
 
-            environmentSideLengths, groups, randomAngleAmplitude, absoluteVelocity, std = [], [], [], [], []
-            timeEvolution = []
+            environmentSideLengths, groups, randomAngleAmplitude, timeEvolution = [], [], [], []
+            absoluteVelocity, absoluteVelocityStd = [], []
+            absoluteGroupVelocities, absoluteGroupVelocityStd, vectorialVelocity, vectorialGroupVelocities = [], [], [], []
+            nematicOrderParameter, nematicOrderParamterStd, nematicOrderParameterGroups, nematicOrderParameterGroupsStd = [], [], [], []
 
             for entry in sortedDict:
                 index = entry[0]
@@ -240,25 +270,43 @@ if __name__ == "__main__":
                 environmentSideLengths.append(result['constants']['environmentSideLength'])
                 groups.append(result['constants']['groups'])
                 randomAngleAmplitude.append(result['constants']['randomAngleAmplitude'])
-                absoluteVelocity.append(result['va'])
-                std.append(result['std'])
+                absoluteVelocity.append(result['totalAbsoluteVelocity'])
+                absoluteVelocityStd.append(result['totalAbsoluteVelocityStd'])
+                absoluteGroupVelocities.append(result['totalAbsoluteGroupVelocities'])
+                absoluteGroupVelocityStd.append(result['totalAbsoluteGroupVelocityStd'])
+                vectorialVelocity.append(result['totalAbsoluteGroupVelocities'])
+                vectorialGroupVelocities.append(result['totalVectorialGroupVelocities'])
+                nematicOrderParameter.append(result['totalNematicOrderParameter'])
+                nematicOrderParamterStd.append(result['totalNematicOrderParameterStd'])
+                nematicOrderParameterGroups.append(result['totalNematicOrderParameterGroups'])
+                nematicOrderParameterGroupsStd.append(result['totalNematicOrderParameterGroupsStd'])
+
                 timeEvolution.append(result['timeEvolution'])
 
             obj = {
                 'environmentSideLengths': environmentSideLengths,
                 'groups': groups,
                 'randomAngleAmplitude': randomAngleAmplitude,
-                'absoluteVelocity': absoluteVelocity,
-                'std': std
+                'totalAbsoluteVelocity': absoluteVelocity,
+                'absoluteVelocityStd': absoluteVelocityStd,
+                'absoluteGroupVelocities': absoluteGroupVelocities,
+                'absoluteGroupVelocityStd': absoluteGroupVelocityStd,
+                'vectorialVelocity': vectorialVelocity,
+                'vectorialGroupVelocities': vectorialGroupVelocities,
+                'nematicOrderParameter': nematicOrderParameter,
+                'nematicOrderParameterStd': nematicOrderParamterStd,
+                'nematicOrderParameterGroups': nematicOrderParameterGroups,
+                'nematicOrderParameterGroupsStd': nematicOrderParameterGroupsStd,
             }
+            # print(obj)
 
-            with open(os.path.join(resultsPath, f'plotResult_{simulationGroupName}.txt'), 'w') as plotFile:
+            with open(os.path.join(resultsPath, f'plotResult_{simulationGroupName}.json'), 'w') as plotFile:
                 json.dump(obj, plotFile)
 
-            with open(os.path.join(simulationGroupData['path'], f'plotResult_{simulationGroupName}.txt'),
+            with open(os.path.join(simulationGroupData['path'], f'plotResult_{simulationGroupName}.json'),
                       'w') as plotFile:
                 json.dump(obj, plotFile)
 
-            with open(os.path.join(simulationGroupData['path'], f'timeEvolutionResult_{simulationGroupName}.txt'),
+            with open(os.path.join(simulationGroupData['path'], f'timeEvolutionResult_{simulationGroupName}.json'),
                       'w') as timeEvolutionFile:
                 json.dump(timeEvolution, timeEvolutionFile)

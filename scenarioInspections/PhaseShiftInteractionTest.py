@@ -25,15 +25,15 @@ if __name__ == "__main__":
         "groups": {
             "1": {
                 "numSwimmers": 1,
-                "oscillationAmplitude": np.pi / 32,
-                "oscillationPeriod": 100,  # how many timesteps for one full oscillation
-                "oscillationPhaseShift": 0
+                "snakingAmplitude": np.pi / 32,
+                "snakingPeriod": 100,  # how many timesteps for one full oscillation
+                "snakingPhaseshift": 0
             },
             "2": {
                 "numSwimmers": 1,
-                "oscillationAmplitude": np.pi / 32,
-                "oscillationPeriod": 100,  # how many timesteps for one full oscillation
-                "oscillationPhaseShift": np.pi / 2
+                "snakingAmplitude": np.pi / 32,
+                "snakingPeriod": 100,  # how many timesteps for one full oscillation
+                "snakingPhaseshift": np.pi / 2
             }
         },
         "interactionRadius": 0.2,

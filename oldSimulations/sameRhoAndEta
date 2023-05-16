@@ -1,9 +1,9 @@
     def sameEtaConstants(i, numSimulation, defaultTimeSteps):
         def initialSwimmerParameter(swimmerIndex):
             return {
-                "oscillationAmplitude": np.pi / 40,
-                "oscillationPeriod": 60,  # how many timesteps for one full oscillation
-                "oscillationPhaseShift": 0
+                "snakingAmplitude": np.pi / 40,
+                "snakingPeriod": 60,  # how many timesteps for one full oscillation
+                "snakingPhaseshift": 0
             }
 
         return {
@@ -28,9 +28,9 @@
     def sameRhoConstants400(i, numSimulation, defaultTimeSteps):
         def initialSwimmerParameter(swimmerIndex):
             return {
-                "oscillationAmplitude": np.pi / 40,
-                "oscillationPeriod": 60,  # how many timesteps for one full oscillation
-                "oscillationPhaseShift": 0
+                "snakingAmplitude": np.pi / 40,
+                "snakingPeriod": 60,  # how many timesteps for one full oscillation
+                "snakingPhaseshift": 0
             }
 
         return {
@@ -58,9 +58,9 @@
     def sameRhoConstants1000(i, numSimulation, defaultTimeSteps):
         def initialSwimmerParameter(swimmerIndex):
             return {
-                "oscillationAmplitude": np.pi / 40,
-                "oscillationPeriod": 60,  # how many timesteps for one full oscillation
-                "oscillationPhaseShift": 0
+                "snakingAmplitude": np.pi / 40,
+                "snakingPeriod": 60,  # how many timesteps for one full oscillation
+                "snakingPhaseshift": 0
             }
 
         return {
@@ -89,9 +89,9 @@
     def sameRhoConstants4000(i, numSimulation, defaultTimeSteps):
         def initialSwimmerParameter(swimmerIndex):
             return {
-                "oscillationAmplitude": np.pi / 40,
-                "oscillationPeriod": 60,  # how many timesteps for one full oscillation
-                "oscillationPhaseShift": 0
+                "snakingAmplitude": np.pi / 40,
+                "snakingPeriod": 60,  # how many timesteps for one full oscillation
+                "snakingPhaseshift": 0
             }
 
         return {
