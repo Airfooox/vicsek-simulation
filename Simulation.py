@@ -290,10 +290,10 @@ class Simulation:
             for interactionSwimmerIndex in interactionSwimmerIndices:
                 interactionSwimmerState = previousState[interactionSwimmerIndex]
                 # polar alignment
-                # sum += -np.sin(swimmerState[2] - interactionSwimmerState[2])
+                sum += -np.sin(swimmerState[2] - interactionSwimmerState[2])
 
                 # apolar / nematic alignment
-                sum += -np.sin(2 * (swimmerState[2] - interactionSwimmerState[2]))
+                # sum += -np.sin(2 * (swimmerState[2] - interactionSwimmerState[2]))
 
             randomAngle = ((np.random.rand() - 0.5) * randomAngleAmplitude)
             cosinesOscillation = swimmerState[3] * np.cos(
@@ -307,14 +307,14 @@ class Simulation:
             vectorialSumVelocity += velVec
 
             # nematic order parameter
-            nematicSumTerm1 += (xVelCos)**2
+            nematicSumTerm1 += xVelCos**2
             nematicSumTerm2 += (xVelCos * yVelSin)
 
             # sum velocity vectors for every group
             vectorialGroupSumVelocities[absoluteGroupVelocityIndex] += velVec
 
-            nematicSumTermsGroup[absoluteGroupVelocityIndex, 0] += nematicSumTerm1
-            nematicSumTermsGroup[absoluteGroupVelocityIndex, 1] += nematicSumTerm2
+            nematicSumTermsGroup[absoluteGroupVelocityIndex, 0] += xVelCos**2
+            nematicSumTermsGroup[absoluteGroupVelocityIndex, 1] += (xVelCos * yVelSin)
 
             absoluteVelocityGroupCount -= 1
             if absoluteVelocityGroupCount <= 0:
@@ -353,13 +353,13 @@ class Simulation:
         absoluteGroupVelocity = np.zeros(len(absoluteGroupVelocityConfig), dtype=np.float64)
         vectorialGroupVelocity = np.zeros((len(absoluteGroupVelocityConfig), 2), dtype=np.float64)
 
-        nematicOrderParameter = 2 / numSwimmers * ((nematicSumTerm1 - 1 / 2) ** 2 + (nematicSumTerm2) ** 2) ** (1 / 2)
+        nematicOrderParameter = 2 * np.sqrt(((nematicSumTerm1 / numSwimmers - 1/2)**2 + (nematicSumTerm2 / numSwimmers)**2))
         nematicOrderParameterGroups = np.zeros(len(absoluteGroupVelocityConfig), dtype=np.float64)
         for index, numGroupSwimmers in enumerate(absoluteGroupVelocityConfig):
             absoluteGroupVelocity[index] = np.linalg.norm(vectorialGroupSumVelocities[index]) / numGroupSwimmers
             vectorialGroupVelocity[index] = vectorialGroupSumVelocities[index] / np.linalg.norm(vectorialGroupSumVelocities[index])
 
-            nematicOrderParameterGroups[index] = 2 / numSwimmers * ((nematicSumTermsGroup[index, 0] - 1 / 2) ** 2 + (nematicSumTermsGroup[index, 1]) ** 2) ** (1 / 2)
+            nematicOrderParameterGroups[index] = 2 * np.sqrt((nematicSumTermsGroup[index, 0] / numGroupSwimmers - 1 / 2) ** 2 + (nematicSumTermsGroup[index, 1] / numGroupSwimmers) ** 2)
 
         return grid, newState, vectorialVelocity, vectorialGroupVelocity, absoluteVelocity, absoluteGroupVelocity, nematicOrderParameter, nematicOrderParameterGroups
 

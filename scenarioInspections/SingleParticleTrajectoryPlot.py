@@ -18,7 +18,7 @@ if __name__ == "__main__":
         os.mkdir(trajectoriesPictureDir)
 
     simulationConfigs = [
-        {'eta': [0], 'amplitude': np.array([1/2]) * np.pi, 'period': [30]},
+        {'eta': [0], 'amplitude': np.array([1/8]) * np.pi, 'period': [30]},
         # {'eta': [0], 'amplitude': np.array([1/2, 1/4]) * np.pi, 'period': [30, 50]},
         # {'eta': [0], 'amplitude': np.array([1/8]) * np.pi, 'period': np.arange(10, 70+1, 20)},
         # {'eta': [0], 'amplitude': np.array([1/16]) * np.pi, 'period': np.arange(10, 110+1, 20)},
@@ -53,13 +53,13 @@ if __name__ == "__main__":
                 averageAngle = np.arctan2(np.sin(theta[t - 1]), np.cos(theta[t - 1]))
                 # averageAngle = theta[t-1]
                 randomAngle = ((np.random.rand() - 0.5) * eta)
-                # cosinesOscillation = amplitude * np.cos((2 * np.pi / period) * t + phi)
+                cosinesOscillation = amplitude * np.cos((2 * np.pi / period) * t + phi)
 
-                k1 = amplitude * np.cos((2*np.pi / period) * t + phi)
-                k2 = amplitude * np.cos((2*np.pi / period) * (t+1/2) + phi)
-                k3 = amplitude * np.cos((2*np.pi / period) * (t+1/2) + phi)
-                k4 = amplitude * np.cos((2*np.pi / period) * (t+1) + phi)
-                cosinesOscillation = (k1 + 2*k2 + 2*k3 + k4) / 6
+                # k1 = amplitude * np.cos((2*np.pi / period) * t + phi)
+                # k2 = amplitude * np.cos((2*np.pi / period) * (t+1/2) + phi)
+                # k3 = amplitude * np.cos((2*np.pi / period) * (t+1/2) + phi)
+                # k4 = amplitude * np.cos((2*np.pi / period) * (t+1) + phi)
+                # cosinesOscillation = (k1 + 2*k2 + 2*k3 + k4) / 6
 
                 theta[t] = averageAngle + randomAngle + cosinesOscillation
                 xVelCos = np.cos(theta[t])

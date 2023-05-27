@@ -105,9 +105,6 @@ def calculateResult(calculationData):
     timeEvolution = np.zeros((timeSteps), dtype=np.float64)
     timeEvolutionVectorialGroupVelocityDifferences = np.zeros((timeSteps, numberOfGroups-1), dtype=np.float64)
     vectorialGroupVelocityDifferences = np.zeros((len(subSimulationPaths), numberOfGroups-1), dtype=np.float64)
-    vectorialGroupVelocityAbsDifferences = np.zeros((len(subSimulationPaths), numberOfGroups-1), dtype=np.float64)
-    vectorialGroupVelocityDifferencesStd = np.zeros((len(subSimulationPaths), numberOfGroups-1), dtype=np.float64)
-    vectorialGroupVelocityAbsDifferencesStd = np.zeros((len(subSimulationPaths), numberOfGroups-1), dtype=np.float64)
 
     selectedTotalAbsoluteVelocity = []
     selectedTotalAbsoluteGroupVelocities = []
@@ -116,34 +113,27 @@ def calculateResult(calculationData):
     selectedTotalNematicOrderParameter = []
     selectedTotalNematicOrderParameterGroups = []
 
-
+    vectorialGroupDifferencesBuffer = np.zeros((len(subSimulationPaths), timeSteps, numberOfGroups - 1), dtype=np.float64)
+    vectorialGroupDifferencesVariances = np.zeros((len(subSimulationPaths), numberOfGroups-1), dtype=np.float64)
     for subSimulationIndex, subSimulationPath in enumerate(subSimulationPaths):
         timeEvolutionData = np.load(os.path.join(subSimulationPath, 'absoluteVelocities.npy'))
         timeEvolution = np.add(timeEvolution, timeEvolutionData)
 
         vectorialGroupVelocities = np.load(os.path.join(subSimulationPath, 'vectorialGroupVelocities.npy'))
-        vectorialGroupDifferencesBuffer = np.zeros((timeSteps, numberOfGroups - 1), dtype=np.float64)
-        vectorialGroupAbsDifferencesBuffer = np.zeros((timeSteps, numberOfGroups - 1), dtype=np.float64)
+
         for groupId in range(numberOfGroups - 1):
             for t in range(timeSteps):
                 previousV = vectorialGroupVelocities[t, groupId]
                 currentV = vectorialGroupVelocities[t, groupId + 1]
-
-                ang1 = np.arctan2(previousV[1], previousV[0])
-                ang2 = np.arctan2(currentV[1], currentV[0])
-                angle = ang1 - ang2
 
                 dot = previousV[0] * currentV[0] + previousV[1] * currentV[1]
                 det = previousV[0] * currentV[1] - previousV[1] * currentV[0]
 
                 # calculate the angle between the inner vectors (so it only goes from 0 to 180°)
                 innerAngle = np.abs(np.arctan2(det, dot))
-                vectorialGroupDifferencesBuffer[t, groupId] = angle
-                vectorialGroupAbsDifferencesBuffer[t, groupId] = innerAngle
-        vectorialGroupVelocityDifferences[subSimulationIndex] = np.mean(vectorialGroupDifferencesBuffer[framesUsedForMean:, :], axis=0)
-        vectorialGroupVelocityAbsDifferences[subSimulationIndex] = np.mean(vectorialGroupAbsDifferencesBuffer[framesUsedForMean:, :], axis=0)
-        vectorialGroupVelocityDifferencesStd[subSimulationIndex] = np.std(vectorialGroupDifferencesBuffer[framesUsedForMean:, :], axis=0)
-        vectorialGroupVelocityAbsDifferencesStd[subSimulationIndex] = np.std(vectorialGroupAbsDifferencesBuffer[framesUsedForMean:, :], axis=0)
+                vectorialGroupDifferencesBuffer[subSimulationIndex, t, groupId] = innerAngle
+            vectorialGroupVelocityDifferences[subSimulationIndex, groupId] = np.mean(vectorialGroupDifferencesBuffer[subSimulationIndex, framesUsedForMean:, :], axis=0)
+            vectorialGroupDifferencesVariances[subSimulationIndex, groupId] = np.var(vectorialGroupDifferencesBuffer[subSimulationIndex, framesUsedForMean:, :], axis=0)
 
         timeEvolutionVectorialGroupVelocityDifferences = np.add(timeEvolutionVectorialGroupVelocityDifferences, vectorialGroupDifferencesBuffer)
 
@@ -182,6 +172,16 @@ def calculateResult(calculationData):
     totalNematicOrderParameter, totalNematicOrderParameterStd = np.mean(selectedTotalNematicOrderParameter), np.std(selectedTotalNematicOrderParameter)
     totalNematicOrderParameterGroups, totalNematicOrderParameterGroupsStd = np.mean(selectedTotalNematicOrderParameterGroups, axis=0), np.std(selectedTotalNematicOrderParameterGroups, axis=0)
 
+    vectorialGroupVelocityDifferencesMean = np.mean(vectorialGroupVelocityDifferences, axis=1)[0]
+    varianceSum = np.sum(vectorialGroupDifferencesVariances)
+    covarianceSum = 0
+    for k in range(len(subSimulationPaths)):
+        for j in range(k):
+            Xk = vectorialGroupDifferencesBuffer[k, framesUsedForMean:, 0]
+            Xj = vectorialGroupDifferencesBuffer[j, framesUsedForMean:, 0]
+            covarianceSum += np.cov(Xk, Xj)[0][1]
+    vectorialGroupVelocityDifferencesStd = (varianceSum + 2*covarianceSum) / len(subSimulationPaths)**2
+
     simulationGroupDirectory[currentSimulationNum] = {
         'absoluteVelocities': selectedTotalAbsoluteVelocity,
         'totalAbsoluteVelocity': totalAbsoluteVelocity,
@@ -190,9 +190,8 @@ def calculateResult(calculationData):
         'totalAbsoluteGroupVelocities': totalAbsoluteGroupVelocities.tolist(),
         'totalAbsoluteGroupVelocityStd': totalAbsoluteGroupVelocityStds.tolist(),
         'vectorialGroupVelocityDifferences': vectorialGroupVelocityDifferences.tolist(),
+        'vectorialGroupVelocityDifferencesMean': vectorialGroupVelocityDifferencesMean.tolist(),
         'vectorialGroupVelocityDifferencesStd': vectorialGroupVelocityDifferencesStd.tolist(),
-        'vectorialGroupVelocityAbsDifferences': vectorialGroupVelocityAbsDifferences.tolist(),
-        'vectorialGroupVelocityAbsDifferencesStd': vectorialGroupVelocityAbsDifferencesStd.tolist(),
         'totalVectorialVelocity': selectedTotalVectorialVelocity,
         'totalVectorialGroupVelocities': selectedTotalVectorialGroupVelocities,
         'nematicOrderParameters': selectedTotalNematicOrderParameter,
@@ -207,7 +206,7 @@ def calculateResult(calculationData):
 
 
 if __name__ == "__main__":
-    dataDir = r'/local/kzisiadis/multiple_groups/90_phaseshift_and_different_snaking_parameter_sets'
+    dataDir = r'/local/kzisiadis/multiple_groups/one_snaking_and_snaking_control_group'
     # dataDir = r'E:\simulationdata\multiple_groups\nematic\sub'
     reevaluateAbsoluteVelocities = False
 
@@ -306,8 +305,8 @@ if __name__ == "__main__":
             environmentSideLengths, groups, randomAngleAmplitude, timeEvolution = [], [], [], []
             timeEvolutionVectorialGroupVelocityDifferences = []
             absoluteVelocities, absoluteVelocity, absoluteVelocityStd = [], [], []
-            vectorialGroupVelocityDifferences, vectorialGroupVelocityDifferencesStd = [], []
-            vectorialGroupVelocityAbsDifferences, vectorialGroupVelocityAbsDifferencesStd = [], []
+            vectorialGroupVelocityDifferences = []
+            vectorialGroupVelocityDifferencesMean, vectorialGroupVelocityDifferencesStd = [], []
             subAbsoluteGroupVelocities = []
             absoluteGroupVelocities, absoluteGroupVelocityStd, vectorialVelocity, vectorialGroupVelocities = [], [], [], []
             nematicOrderParameters, nematicOrderParameter, nematicOrderParamterStd = [], [], []
@@ -327,9 +326,8 @@ if __name__ == "__main__":
                 absoluteGroupVelocities.append(result['totalAbsoluteGroupVelocities'])
                 absoluteGroupVelocityStd.append(result['totalAbsoluteGroupVelocityStd'])
                 vectorialGroupVelocityDifferences.append(result['vectorialGroupVelocityDifferences'])
+                vectorialGroupVelocityDifferencesMean.append(result['vectorialGroupVelocityDifferencesMean'])
                 vectorialGroupVelocityDifferencesStd.append(result['vectorialGroupVelocityDifferencesStd'])
-                vectorialGroupVelocityAbsDifferences.append(result['vectorialGroupVelocityAbsDifferences'])
-                vectorialGroupVelocityAbsDifferencesStd.append(result['vectorialGroupVelocityAbsDifferencesStd'])
                 vectorialVelocity.append(result['totalAbsoluteGroupVelocities'])
                 vectorialGroupVelocities.append(result['totalVectorialGroupVelocities'])
                 nematicOrderParameters.append(result['nematicOrderParameters'])
@@ -354,9 +352,8 @@ if __name__ == "__main__":
                 'absoluteGroupVelocities': absoluteGroupVelocities,
                 'absoluteGroupVelocityStd': absoluteGroupVelocityStd,
                 'vectorialGroupVelocityDifferences': vectorialGroupVelocityDifferences,
+                'vectorialGroupVelocityDifferencesMean': vectorialGroupVelocityDifferencesMean,
                 'vectorialGroupVelocityDifferencesStd': vectorialGroupVelocityDifferencesStd,
-                'vectorialGroupVelocityAbsDifferences': vectorialGroupVelocityAbsDifferences,
-                'vectorialGroupVelocityAbsDifferencesStd': vectorialGroupVelocityAbsDifferencesStd,
                 'vectorialVelocity': vectorialVelocity,
                 'vectorialGroupVelocities': vectorialGroupVelocities,
                 'nematicOrderParameters': nematicOrderParameters,

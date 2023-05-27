@@ -44,7 +44,9 @@ class SimulationManager:
         absoluteVelocities = simulation.absoluteVelocities
         totalAbsoluteVelocity = simulation.totalAbsoluteVelocity
         totalAbsoluteGroupVelocities = simulation.totalAbsoluteGroupVelocities
+        vectorialVelocities = simulation.vectorialVelocities
         totalVectorialVelocity = simulation.totalVectorialVelocity
+        vectorialGroupVelocities = simulation.vectorialGroupVelocities
         totalVectorialGroupVelocities = simulation.totalVectorialGroupVelocities
         totalNematicOrderParameter = simulation.totalNematicOrderParameter
         totalNematicOrderParameterGroups = simulation.totalNematicOrderParameterGroups
@@ -57,6 +59,12 @@ class SimulationManager:
 
         with open(os.path.join(scenarioDataDir, 'absoluteVelocities.npy'), 'wb') as absoluteVelocitiesFile:
             np.save(absoluteVelocitiesFile, absoluteVelocities)
+
+        with open(os.path.join(scenarioDataDir, 'vectorialVelocities.npy'), 'wb') as vectorialVelocitiesFile:
+            np.save(vectorialVelocitiesFile, vectorialVelocities)
+
+        with open(os.path.join(scenarioDataDir, 'vectorialGroupVelocities.npy'), 'wb') as vectorialGroupVelocitiesFile:
+            np.save(vectorialGroupVelocitiesFile, vectorialGroupVelocities)
 
         totalVelocities = {
             'totalAbsoluteVelocity': totalAbsoluteVelocity,

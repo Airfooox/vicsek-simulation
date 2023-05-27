@@ -8,6 +8,9 @@ from matplotlib.widgets import Slider
 from scipy.optimize import curve_fit, differential_evolution
 from numba import njit
 from pprint import pprint
+
+import util
+
 mpl.use("TkAgg")
 
 
@@ -31,7 +34,9 @@ def getMeanAbsolutVelocity(absoluteVelocities, startMean):
     return np.mean(arr)
 
 if __name__ == "__main__":
-    timeEvolutionFile = r'E:\simulationdata\simulations\sameRhoGroup_phaseShift_N=1000_eta=2_A=0.06pi_T=30_phi=[0.0pi]_g=1\timeEvolutionResult_sameRhoGroup_phaseShift_N=1000_eta=2_A=0.06pi_T=30_phi=[0.0pi]_g=1.txt'
+    # timeEvolutionFile = r'E:\simulationdata\simulations\sameRhoGroup_phaseShift_N=1000_eta=2_A=0.06pi_T=30_phi=[0.0pi]_g=1\timeEvolutionResult_sameRhoGroup_phaseShift_N=1000_eta=2_A=0.06pi_T=30_phi=[0.0pi]_g=1.txt'
+    # timeEvolutionFile = r'C:\Users\konst\OneDrive\Uni\Lehre\7. Semester\Bachelorarbeit\simulationData\simulationData\multiple_groups\pi_over_8_and_no_snaking\timeEvolutionResult_va_over_eta_multiple_groups_d5eae441-9e31-459b-8b35-10fb39de70dc.json'
+    timeEvolutionFile = r'C:\Users\konst\OneDrive\Uni\Lehre\7. Semester\Bachelorarbeit\simulationData\simulationData\multiple_groups\timeEvolutionVectorialGroupVelocityDifferencesResult_va_over_eta_multiple_groups_one_snaking_other_not.json'
     initSimulationScenarioNum = 1
 
     timePercentageUsedForMean = 25
@@ -39,13 +44,24 @@ if __name__ == "__main__":
     with open(timeEvolutionFile) as plotFile:
         timeEvolution = json.load(plotFile)
 
-    y = timeEvolution[initSimulationScenarioNum]
+    y = np.array(timeEvolution)[initSimulationScenarioNum, :, 0]
     x = np.array(range(len(y)))
 
-    framesUsedForMean = np.ceil(((1 - (timePercentageUsedForMean / 100)) * len(y)))
+    framesUsedForMean = int(np.ceil(((1 - (timePercentageUsedForMean / 100)) * len(y))))
 
     fig, ax = plt.subplots()
-    line, = plt.plot(x, y)
+    ax.set_ylim(-0.05, np.pi + 0.05)
+    line, = plt.plot(x, y, marker='x', linestyle='', markersize=1)
+    mean = np.mean(y[framesUsedForMean:])
+    std = np.std(y[framesUsedForMean:])
+    meanLine = plt.axhline(y=mean, color='r', linestyle='-')
+    meanOStdLine = plt.axhline(y=mean+std, color='r', linestyle='--')
+    meanUStdLine = plt.axhline(y=mean-std, color='r', linestyle='--')
+    print('mean/std:', mean, std)
+
+    majorTicks = util.Multiple(8)
+    ax.yaxis.set_major_locator(majorTicks.locator())
+    ax.yaxis.set_major_formatter(majorTicks.formatter())
 
     def func(t, a, b):
         return -a * (np.exp(-b * t) - 1)
@@ -78,7 +94,7 @@ if __name__ == "__main__":
     )
 
     def update(newScenarioNum):
-        y = timeEvolution[newScenarioNum]
+        y = np.array(timeEvolution)[newScenarioNum, :, 0]
         line.set_ydata(y)
         model = non_linear_regression(x / len(y), y, func, initialParameters)
         a, b = model['parameters'][0], model['parameters'][1] / len(y)
@@ -92,6 +108,13 @@ if __name__ == "__main__":
         print(startMean)
         vline.set_xdata(startMean)
         print("va:", getMeanAbsolutVelocity(np.array(y), startMean))
+
+        mean = np.mean(y[framesUsedForMean:])
+        std = np.std(y[framesUsedForMean:])
+        meanLine.set_ydata(mean)
+        meanOStdLine.set_ydata(mean + std)
+        meanUStdLine.set_ydata(mean - std)
+        print('mean/std:', mean, std)
 
     scenarioSlider.on_changed(update)
 
