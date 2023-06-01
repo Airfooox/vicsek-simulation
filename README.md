@@ -1,1 +1,1 @@
-Code for my physics bachelor thesis `Collective motion of snaking self-propelled particles'
+Code for my physics bachelor thesis `Collective motion in crowds of snaking self-propelled particles'
