@@ -129,14 +129,15 @@ def calculateResult(calculationData):
                 previousV = vectorialGroupVelocities[t, groupId]
                 currentV = vectorialGroupVelocities[t, groupId + 1]
 
-                ang1 = np.arctan2(previousV[1], previousV[0])
-                ang2 = np.arctan2(currentV[1], currentV[0])
-                angle = ang1 - ang2
+                # ang1 = np.arctan2(previousV[1], previousV[0])
+                # ang2 = np.arctan2(currentV[1], currentV[0])
+                # angle = ang1 - ang2
 
                 dot = previousV[0] * currentV[0] + previousV[1] * currentV[1]
                 det = previousV[0] * currentV[1] - previousV[1] * currentV[0]
 
                 # calculate the angle between the inner vectors (so it only goes from 0 to 180°)
+                angle = np.arctan2(det, dot)
                 innerAngle = np.abs(np.arctan2(det, dot))
                 vectorialGroupDifferencesBuffer[t, groupId] = angle
                 vectorialGroupAbsDifferencesBuffer[t, groupId] = innerAngle
@@ -207,7 +208,7 @@ def calculateResult(calculationData):
 
 
 if __name__ == "__main__":
-    dataDir = r'/local/kzisiadis/multiple_groups/90_phaseshift_and_different_snaking_parameter_sets'
+    dataDir = r'/local/kzisiadis/multiple_groups/one_snaking_and_snaking_control_group'
     # dataDir = r'E:\simulationdata\multiple_groups\nematic\sub'
     reevaluateAbsoluteVelocities = False
 

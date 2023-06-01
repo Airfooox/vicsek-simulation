@@ -15,8 +15,8 @@ if __name__ == "__main__":
     plotResultDir = r"C:\Users\konst\OneDrive\Uni\Lehre\7. Semester\Bachelorarbeit\simulationData\simulationData\multiple_groups"
     # plotResultDir = r"C:\Users\konst\OneDrive\Uni\Lehre\7. Semester\Bachelorarbeit\simulationData\simulationData\multiple_groups\nematic\pi_over_8_and_no_snaking"
     # plotResultDir = r"E:\simulationdata\multiple_groups\nematic\sub\_results"
-    fileName= r'plotResult_va_over_eta_multiple_groups_different_parameter_sets.json'
-    # fileName= r'plotResult_va_over_eta_multiple_groups_nematic_200subsimulations.json'
+    fileName= r'plotResult_va_over_eta_multiple_groups_90_phaseshift.json'
+    # fileName= r'plotResult_va_over_eta_multiple_groups_961abe6c-fa3c-475e-b670-405aacde3436.json'
     file = open(os.path.join(plotResultDir, fileName))
 
     resultData = json.load(file)
@@ -48,7 +48,7 @@ if __name__ == "__main__":
         'nematicOrderParameterStd': resultData['nematicOrderParameterStd'][plotLim[0]:plotLim[1]+1]
     }
 
-    figure = plt.figure()
+    figure = plt.figure(layout='tight')
     subfigures = figure.subfigures(2, 1, height_ratios=[3.0, 1.5])
     gs = subfigures[0].add_gridspec(3, hspace=0)
     (ax1, ax2, ax3) = gs.subplots(sharex=True)
@@ -191,16 +191,16 @@ if __name__ == "__main__":
     ax5.xaxis.set_major_formatter(majorTicks2.formatter())
 
     # ax1.set_xlabel(r'$\eta \longrightarrow$')
-    ax1.set_ylabel(r'$\Delta \theta \longrightarrow$')
-    ax2.set_ylabel(r'$\left| \Delta \theta \right| \longrightarrow$')
+    ax1.set_ylabel(r'$\overline{\Delta \theta} \longrightarrow$')
+    ax2.set_ylabel(r'$\overline{\left| \Delta \theta \right|} \longrightarrow$')
     ax3.set_xlabel(r'$\eta \longrightarrow$')
     ax3.set_ylabel(r'$v_a \longrightarrow$')
     # ax3.set_ylabel(r'$S \longrightarrow$')
 
     # ax4.set_xlabel(r'$\left| \Delta \theta \right| \longrightarrow$')
-    ax4.set_xlabel(r'$\Delta \theta \longrightarrow$')
+    ax4.set_xlabel(r'$\overline{\Delta \theta}  \longrightarrow$')
     ax4.set_ylabel(r'$v_a \longrightarrow$')
-    ax5.set_xlabel(r'$\left| \Delta \theta \right| \longrightarrow$')
+    ax5.set_xlabel(r'$\overline{\left| \Delta \theta \right|} \longrightarrow$')
     # ax4.set_ylabel(r'$S \longrightarrow$')
 
     ax1.grid('both')
@@ -237,5 +237,6 @@ if __name__ == "__main__":
 
     # ax1.set_title(r'Directional difference $\Delta \theta$ as a function of noise strength $\eta$ with 90° phaseshift $N_1 = N_2 = 1000, \rho = 4, A_1 = A_2 = \pi/16, T_1 = T_2 = 30, \Delta \varphi = \pi/2$')
 
+    # figure.tight_layout()
     figure.savefig(os.path.join(plotResultDir, fileName[:-5] + ".png"), bbox_inches='tight')
     plt.show()
